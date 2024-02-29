@@ -50,7 +50,7 @@ private:
 
     void load_history();
 
-    void erase_combine_key();
+    // void erase_combine_key();
 
 private:
     std::vector<std::string> _history;
