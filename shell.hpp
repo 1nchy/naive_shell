@@ -25,8 +25,10 @@ public:
 private:
     // bool parse(const std::string& _s);
     void reset();
-    size_t execute_instruction(size_t);
-    size_t execute_instruction_bg(size_t);
+    size_t combine_instruction(size_t);
+    void execute_combine_instruction(size_t, size_t);
+    void execute_instruction(size_t);
+    void execute_instruction_bg(size_t);
 private:
     // typedef void(shell::*internal_instruction_handler)(void);
     using internal_instruction_handler = void(shell::*)(const std::vector<std::string>&);
@@ -46,7 +48,7 @@ private:
     void echo(const std::vector<std::string>&);
 
 private:
-    shell_editor& _e;
+    shell_editor& _editor;
     // std::istream& _is; // for editor
     // std::ostream& _os; // for editor
     std::vector<std::vector<std::string>> _parsed_command;
