@@ -233,7 +233,10 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
         std::vector<pid_t> _children;
         // std::vector<int> _children_pipe;
         int _child_in_fd[2]; int _child_out_fd[2];
-        pipe(_child_in_fd);
+        int _temp_fd = -1;
+        if (_e - _b >= 2) {
+            pipe(_child_in_fd); // pipe between main child process and 1st process
+        }
         for (size_t _i = 2; _i <= _e - _b; ++_i) {
             std::swap(_child_in_fd, _child_out_fd);
             if (_i != _e - _b) {
@@ -258,12 +261,16 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
                 }
 
                 execvp(_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
-                // close(_pipe_fd[1]);
                 exit(EXIT_SUCCESS);
             }
+            // close out fd
             close(_child_out_fd[1]);
             if (_i == 2) {
-                dup2(_child_out_fd[0], _editor.in());
+                // dup2(_child_out_fd[0], _editor.in());
+                /**
+                 * 后续所有子进程的文件描述符都将继承该主子进程，因此对该主子进程文件描述符的复制应该放在最后
+                */
+                _temp_fd = _child_out_fd[0];
             }
             else {
                 close(_child_out_fd[0]);
@@ -271,6 +278,9 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
             // _children_pipe.emplace_back(_child_out_fd[0]);
 
             _children.emplace_back(_pid);
+        }
+        if (_temp_fd != -1) {
+            dup2(_temp_fd, _editor.in());
         }
         std::vector<const char*> _cmd_args;
         for (const auto& _arg : _main_cmd) {
