@@ -1,5 +1,7 @@
 #include "editor.hpp"
 
+#include <termios.h>
+
 #include <algorithm>
 
 namespace asp {
@@ -20,16 +22,23 @@ bool editor::wait() {
     /*int*/char _c; _history_pointer = _history.cend(); _end_of_file = false;
     system("stty raw");
 
+    termios _new_setting, _init_setting;
+    tcgetattr(in(), &_init_setting);
+    _new_setting = _init_setting;
+    _new_setting.c_lflag &= ~ECHO;
+    tcsetattr(in(), TCSANOW, &_new_setting);
+
     // while ((_c = in().get()) != EOF) {
     while (true) {
     read(_in, &_c, sizeof(_c));
 
 
     if (_c == '\r' || _c == '\n') {
-        viewer_back(2);
+        // viewer_back(2);
         write_back();
         if (empty()) continue;
         build_command();
+        tcsetattr(in(), TCSANOW, &_init_setting);
         system("stty cooked");
         // out() << std::endl;
         write(_out, "\n", 1);
@@ -37,8 +46,10 @@ bool editor::wait() {
         return true;
     }
     else if (_c == '\04' || _c == '\03') { // ctrl+c or ctrl+d
-        viewer_back(2);
+        // viewer_back(2);
+        write_back();
         _end_of_file = true;
+        tcsetattr(in(), TCSANOW, &_init_setting);
         system("stty cooked");
         // out() << std::endl;
         write(_out, "\n", 1);
@@ -51,7 +62,7 @@ bool editor::wait() {
         read(_in, &_subc, sizeof(_subc));
         read(_in, &_subc, sizeof(_subc));
         if (_subc == 'A') { // up arrow ^[[A
-            viewer_back(4);
+            // viewer_back(4);
             cursor_back(_front.size());
             fill_blank(0);
             cursor_back(_front.size() + _back.size());
@@ -73,7 +84,7 @@ bool editor::wait() {
             }
         }
         else if (_subc == 'B') { // down arrow ^[[B
-            viewer_back(4);
+            // viewer_back(4);
             cursor_back(_front.size());
             fill_blank(0);
             cursor_back(_front.size() + _back.size());
@@ -91,9 +102,9 @@ bool editor::wait() {
             }
         }
         else if (_subc == 'D') { // left arrow ^[[D
-            viewer_back(4);
-            write_back();
-            cursor_back(_back.size());
+            // viewer_back(4);
+            // write_back();
+            // cursor_back(_back.size());
             if (!_front.empty()) {
                 _back.push_back(_front.back());
                 _front.pop_back();
@@ -101,7 +112,7 @@ bool editor::wait() {
             }
         }
         else if (_subc == 'C') { // right arrow ^[[C
-            viewer_back(4);
+            // viewer_back(4);
             if (!_back.empty()) {
                 write_back();
                 _front.push_back(_back.back());
@@ -110,14 +121,14 @@ bool editor::wait() {
             }
         }
         else if (_subc == 'H') { // home key ^[[H
-            viewer_back(4);
+            // viewer_back(4);
             write_back();
             _back.insert(_back.end(), _front.crbegin(), _front.crend());
             _front.clear();
             cursor_back(_back.size());
         }
         else if (_subc == 'F') { // end key ^[[F
-            viewer_back(4);
+            // viewer_back(4);
             write_back();
             _front.insert(_front.end(), _back.crbegin(), _back.crend());
             _back.clear();
@@ -126,28 +137,31 @@ bool editor::wait() {
             // in().get(); // get '~'
             read(_in, &_subc, sizeof(_subc));
             if (!_back.empty()) {
-                viewer_back(5);
+                // viewer_back(5);
                 _back.pop_back();
                 write_back();
                 fill_blank(1);
                 cursor_back(_back.size() + 1);
             }
-            else {
-                viewer_back(5);
-            }
+            // else {
+            //     viewer_back(5);
+            // }
         }
     }
     else if (_c == 127) { // backspace
         if (!_front.empty()) {
-            viewer_back(3);
+            viewer_back(1);
             _front.pop_back();
             write_back();
             fill_blank(1);
             cursor_back(_back.size() + 1);
         }
-        else {
-            viewer_back(2);
-        }
+        // else {
+        //     viewer_back(2);
+        // }
+    }
+    else if (_c == '\t') {
+        
     }
     else {
         // if (_c == ' ' && _front.empty()) {
@@ -159,12 +173,14 @@ bool editor::wait() {
         //     continue;
         // }
         _front.push_back(_c);
+        write(out(), &_c, sizeof(_c));
         write_back();
         cursor_back(_back.size());
     }
     }
 
     system("stty cooked");
+    tcsetattr(in(), TCSANOW, &_init_setting);
     return true;
 }
 const std::string& editor::line() {
