@@ -231,10 +231,14 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
     pid_t _pid = fork();
     if (_pid == 0) { // main child process
         std::vector<pid_t> _children;
-        std::vector<int> _children_pipe;
+        // std::vector<int> _children_pipe;
+        int _child_in_fd[2]; int _child_out_fd[2];
+        pipe(_child_in_fd);
         for (size_t _i = 2; _i <= _e - _b; ++_i) {
-            int _pipe_fd[2]; pipe(_pipe_fd);
-            // dup2(_pipe_fd[1], _editor.out());
+            std::swap(_child_in_fd, _child_out_fd);
+            if (_i != _e - _b) {
+                pipe(_child_in_fd);
+            }
             _pid = fork();
             if (_pid == 0) { // other process
                 const auto& _cmd = _parsed_command[_e - _i];
@@ -245,16 +249,26 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
                 _cmd_args.emplace_back(nullptr);
 
                 // redirection
-                close(_pipe_fd[0]);
-                dup2(_pipe_fd[1], _editor.out());
+                close(_child_out_fd[0]);
+                dup2(_child_out_fd[1], _editor.out());
+
+                if (_i != _e - _b) {
+                    close(_child_in_fd[1]);
+                    dup2(_child_in_fd[0], _editor.in());
+                }
 
                 execvp(_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
                 // close(_pipe_fd[1]);
                 exit(EXIT_SUCCESS);
             }
-            close(_pipe_fd[1]);
-            dup2(_pipe_fd[0], _editor.in());
-            _children_pipe.emplace_back(_pipe_fd[0]);
+            close(_child_out_fd[1]);
+            if (_i == 2) {
+                dup2(_child_out_fd[0], _editor.in());
+            }
+            else {
+                close(_child_out_fd[0]);
+            }
+            // _children_pipe.emplace_back(_child_out_fd[0]);
 
             _children.emplace_back(_pid);
         }
