@@ -260,7 +260,18 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
                     dup2(_child_in_fd[0], _editor.in());
                 }
 
+                FILE* _input_file = nullptr;
+                if (_i == _e - _b) { // file redirection
+                    if (!_instruction_redirection[_e - 1].first.empty()) {
+                        _input_file = fopen(_instruction_redirection[_e - 1].first.c_str(), "r+");
+                        if (_input_file != nullptr) {
+                            dup2(fileno(_input_file), _editor.in());
+                        }
+                    }
+                }
+
                 execvp(_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
+                if (_input_file != nullptr) fclose(_input_file);
                 exit(EXIT_SUCCESS);
             }
             // close out fd
@@ -288,17 +299,26 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
         }
         _cmd_args.emplace_back(nullptr);
 
-        // FILE* _out_file = nullptr;
-        // if (!_instruction_redirection[_e - 1].second.empty()) {
-        //     if (_instruction_redirection_type[_e - 1] == 1) {
-        //         _out_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "w+");
-        //     }
-        //     else if (_instruction_redirection_type[_e - 1] == 2) {
-        //         _out_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "r+");
-        //     }
-        //     else {}
-        //     dup2(fileno(_out_file), _editor.out());
-        // }
+        FILE* _input_file = nullptr;
+        FILE* _output_file = nullptr;
+        if (_e - _b < 2) {
+            if (!_instruction_redirection[_e - 1].first.empty()) {
+                _input_file = fopen(_instruction_redirection[_e - 1].first.c_str(), "r+");
+                if (_input_file != nullptr) {
+                    dup2(fileno(_input_file), _editor.in());
+                }
+            }
+        }
+        if (!_instruction_redirection[_e - 1].second.empty()) {
+            if (_instruction_redirection_type[_e - 1] == 1) {
+                _output_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "w+");
+                dup2(fileno(_output_file), _editor.out());
+            }
+            else if (_instruction_redirection_type[_e - 1] == 2) {
+                _output_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "a+");
+                dup2(fileno(_output_file), _editor.out());
+            }
+        }
 
         execvp(_main_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
 
@@ -308,8 +328,8 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
         // for (const auto& _i : _children_pipe) {
         //     close(_i);
         // }
-
-        // if (_out_file != nullptr) { fclose(_out_file); }
+        if (_input_file != nullptr) fclose(_input_file);
+        if (_output_file != nullptr) { fclose(_output_file); }
         exit(EXIT_SUCCESS);
     }
     _current_processes.insert(_pid);
