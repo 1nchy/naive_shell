@@ -1,0 +1,10 @@
+*
+
+!.gitignore
+!README.md
+
+!*.hpp
+!editor.cpp
+!virtual_editor.cpp
+!shell.cpp
+!trie_tree.cpp
