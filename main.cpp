@@ -7,7 +7,7 @@ int main(void) {
     while (true) {
         if (!_shell.wait()) break;
         _shell.compile();
-        // _shell.execute();
+        _shell.execute();
     }
     return 0;
 }

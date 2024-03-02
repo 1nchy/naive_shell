@@ -230,8 +230,10 @@ void editor::tab() {}
 
 void editor::load_history() {}
 void editor::build_command() {
-    _command.resize(_front.size() + _back.size());
-    std::merge(_front.cbegin(), _front.cend(), _back.crbegin(), _back.crend(), _command.begin());
+    _command.clear();
+    _command.reserve(_front.size() + _back.size());
+    _command.append(_front.cbegin(), _front.cend());
+    _command.append(_back.crbegin(), _back.crend());
 }
 
 };
