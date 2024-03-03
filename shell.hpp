@@ -29,7 +29,8 @@ private:
     void execute_combine_instruction(size_t, size_t);
     void execute_instruction(const std::vector<std::string>&);
     void execute_builtin_instruction(const std::vector<std::string>&);
-    void execute_instruction_bg(size_t);
+
+    void execute_combine_instruction_bg(size_t, size_t);
 
     std::string build_information();
 private:
