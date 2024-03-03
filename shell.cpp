@@ -12,8 +12,8 @@
 namespace asp {
 shell::shell(shell_editor& _e)
  : _editor(_e) {
-    // _home_dir = std::filesystem::path(getenv("HOME"));
-    // _cwd = std::filesystem::current_path();
+    _home_dir = std::filesystem::path(getenv("HOME"));
+    _cwd = _prev_cwd = std::filesystem::current_path();
 
     _cmd_symbol_dict.add(">");
     _cmd_symbol_dict.add(">>");
@@ -41,7 +41,7 @@ bool shell::wait() {
     bool _line_parsed = false;
     bool _background_mark = false;
 
-    _editor.show_information();
+    _editor.show_information(build_information());
     reset();
     _editor.show_prompt();
     std::string _s = _editor.line();
@@ -189,7 +189,22 @@ bool shell::wait() {
     return true;
 }
 
-bool shell::compile() { // extract
+bool shell::compile() { // further check and extract
+    const size_t _n = _parsed_command.size();
+    assert(_instruction_relation.size() == _n);
+    assert(_instruction_redirection.size() == _n);
+    assert(_instruction_redirection_type.size() == _n);
+
+    for (size_t _i = 0; _i < _n; ++_i) {
+        if (_instruction_relation[_i] == "|") { // pipe
+            if (!_instruction_redirection[_i].first.empty() || !_instruction_redirection[_i].second.empty()) {
+                return false;
+            }
+            if (_instruction_redirection_type[_i] != 0) {
+                return false;
+            }
+        }
+    }
     return true;
 }
 
@@ -228,6 +243,40 @@ size_t shell::combine_instruction(size_t _b) {
 void shell::execute_combine_instruction(size_t _b, size_t _e) {
     const auto& _main_cmd = _parsed_command[_e - 1];
 
+    if (_e - _b == 1 && is_builtin_instruction(_main_cmd.at(0))) {
+        // redirect
+        int _old_in = dup(_editor.in());
+        int _old_out = dup(_editor.out());
+        FILE* _input_file = nullptr; FILE* _output_file = nullptr;
+        if (!_instruction_redirection[_e - 1].first.empty()) {
+            _input_file = fopen(_instruction_redirection[_e - 1].first.c_str(), "r+");
+            if (_input_file != nullptr) {
+                dup2(fileno(_input_file), _editor.in());
+            }
+        }
+        if (!_instruction_redirection[_e - 1].second.empty()) {
+            if (_instruction_redirection_type[_e - 1] == 1) {
+                _output_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "w+");
+                dup2(fileno(_output_file), _editor.out());
+            }
+            else if (_instruction_redirection_type[_e - 1] == 2) {
+                _output_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "a+");
+                dup2(fileno(_output_file), _editor.out());
+            }
+        }
+        execute_builtin_instruction(_main_cmd);
+        // re-redirect
+        if (_input_file != nullptr) {
+            fclose(_input_file);
+            dup2(_old_in, _editor.in());
+        }
+        if (_output_file != nullptr) {
+            fclose(_output_file);
+            dup2(_old_out, _editor.out());
+        }
+        return;
+    }
+
     pid_t _pid = fork();
     if (_pid == 0) { // main child process
         std::vector<pid_t> _children;
@@ -245,11 +294,11 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
             _pid = fork();
             if (_pid == 0) { // other process
                 const auto& _cmd = _parsed_command[_e - _i];
-                std::vector<const char*> _cmd_args;
-                for (const auto& _arg : _cmd) {
-                    _cmd_args.emplace_back(_arg.c_str());
-                }
-                _cmd_args.emplace_back(nullptr);
+                // std::vector<const char*> _cmd_args;
+                // for (const auto& _arg : _cmd) {
+                //     _cmd_args.emplace_back(_arg.c_str());
+                // }
+                // _cmd_args.emplace_back(nullptr);
 
                 // redirection
                 close(_child_out_fd[0]);
@@ -270,7 +319,8 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
                     }
                 }
 
-                execvp(_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
+                execute_instruction(_cmd);
+                // execvp(_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
                 if (_input_file != nullptr) fclose(_input_file);
                 exit(EXIT_SUCCESS);
             }
@@ -293,11 +343,11 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
         if (_temp_fd != -1) {
             dup2(_temp_fd, _editor.in());
         }
-        std::vector<const char*> _cmd_args;
-        for (const auto& _arg : _main_cmd) {
-            _cmd_args.emplace_back(_arg.c_str());
-        }
-        _cmd_args.emplace_back(nullptr);
+        // std::vector<const char*> _cmd_args;
+        // for (const auto& _arg : _main_cmd) {
+        //     _cmd_args.emplace_back(_arg.c_str());
+        // }
+        // _cmd_args.emplace_back(nullptr);
 
         FILE* _input_file = nullptr;
         FILE* _output_file = nullptr;
@@ -320,7 +370,8 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
             }
         }
 
-        execvp(_main_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
+        // execvp(_main_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
+        execute_instruction(_main_cmd);
 
         for (const auto& _i : _children) {
             waitpid(_i, nullptr, WUNTRACED);
@@ -328,7 +379,7 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
         // for (const auto& _i : _children_pipe) {
         //     close(_i);
         // }
-        if (_input_file != nullptr) fclose(_input_file);
+        if (_input_file != nullptr) { fclose(_input_file); }
         if (_output_file != nullptr) { fclose(_output_file); }
         exit(EXIT_SUCCESS);
     }
@@ -338,52 +389,92 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
     return;
 }
 
-void shell::execute_instruction(size_t _i) {
-    const auto& _cmd = _parsed_command[_i];
-
-    if (_internal_instruction.count(_cmd[0])) {
-        // (_internal_instruction.at(_cmd[0])._handler)();
-        const auto& _detail = _internal_instruction.at(_cmd[0]);
-        if (_cmd.size() < _detail._min_args) {
-            // error
-            return;
-        }
-        if (_detail._max_args != 0 && _cmd.size() > _detail._max_args) {
-            // error
-            return;
-        }
-        (this->*_detail._handler)(_cmd);
+void shell::execute_instruction(const std::vector<std::string>& _args) {
+    if (_builtin_instruction.count(_args[0].c_str())) { // for built-in instruction
+        (this->*_builtin_instruction.at(_args[0])._handler)(_args);
         return;
     }
-
-    pid_t _pid = fork();
-    if (_pid == 0) { // child process
-        // execl("echo", "hello", nullptr);
+    else { // for other instruction
         std::vector<const char*> _cmd_args;
-        for (const auto& _arg : _cmd) {
+        for (const auto& _arg : _args) {
             _cmd_args.emplace_back(_arg.c_str());
         }
         _cmd_args.emplace_back(nullptr);
-
-        // redirection
-
-        execvp(_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
-        exit(EXIT_SUCCESS);
+        execvp(_args[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
+        return;
     }
-    _current_processes.insert(_pid);
-    waitpid(_pid, nullptr, WUNTRACED);
-    _current_processes.erase(_pid);
-    return;
 }
+void shell::execute_builtin_instruction(const std::vector<std::string>& _args) {
+    if (is_builtin_instruction(_args[0].c_str())) { // for built-in instruction
+        (this->*_builtin_instruction.at(_args[0])._handler)(_args);
+    }
+}
+
 void shell::execute_instruction_bg(size_t _i) {
     return;
 }
 
-void shell::cd(const std::vector<std::string>&) {}
-void shell::cwd(const std::vector<std::string>&) {}
-void shell::history(const std::vector<std::string>&) {}
-void shell::quit(const std::vector<std::string>&) {}
-void shell::bg(const std::vector<std::string>&) {}
-void shell::job(const std::vector<std::string>&) {}
-void shell::echo(const std::vector<std::string>&) {}
+std::string shell::build_information() {
+    std::string _info;
+    _info.push_back('[');
+    _info.append(_cwd.filename());
+    _info.push_back(']');
+    return _info;
+}
+
+void shell::cd(const std::vector<std::string>& _args) {
+    if (!internal_instruction_check("cd", _args)) {
+        exit(EXIT_FAILURE);
+    }
+    if (_args.size() == 1) { // cd
+        chdir(_home_dir.c_str());
+    }
+    else if (_args.at(1) == "-") { // cd -
+        chdir(_prev_cwd.c_str());
+        printf("%s\n", _prev_cwd.c_str());
+    }
+    else if (_args.at(1) == ".") { // cd .
+        return;
+    }
+    else if (_args.at(1) == "..") { // cd ..
+        chdir(_cwd.parent_path().c_str());
+    }
+    else {
+        chdir(_args.at(1).c_str());
+    }
+    _prev_cwd = _cwd;
+    _cwd = std::filesystem::current_path();
+}
+void shell::cwd(const std::vector<std::string>& _args) {
+    if (!internal_instruction_check("cwd", _args)) {
+        exit(EXIT_FAILURE);
+    }
+    // const auto& _cwd_str = _cwd.string();
+    printf("%s\n", _cwd.c_str());
+    // printf("%s\n", getcwd(nullptr, 0));
+    // write(stdout, _cwd_str.c_str(), _cwd_str.size());
+}
+void shell::history(const std::vector<std::string>& _args) {}
+void shell::quit(const std::vector<std::string>& _args) {}
+void shell::bg(const std::vector<std::string>& _args) {}
+void shell::job(const std::vector<std::string>& _args) {}
+void shell::echo(const std::vector<std::string>& _args) {}
+
+bool shell::internal_instruction_check(const std::string& _cmd, const std::vector<std::string>& _args) {
+    if (!is_builtin_instruction(_cmd)) return false;
+    const auto& _details = _builtin_instruction.at(_cmd);
+    if (_args.size() < _details._min_args) {
+        return false;
+    }
+    if (_details._max_args != 0 && _args.size() > _details._max_args) {
+        return false;
+    }
+    if (_args[0] != _cmd) {
+        return false;
+    }
+    return true;
+}
+bool shell::is_builtin_instruction(const std::string& _cmd) const {
+    return _builtin_instruction.count(_cmd);
+}
 };

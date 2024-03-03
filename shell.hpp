@@ -27,8 +27,11 @@ private:
     void reset();
     size_t combine_instruction(size_t);
     void execute_combine_instruction(size_t, size_t);
-    void execute_instruction(size_t);
+    void execute_instruction(const std::vector<std::string>&);
+    void execute_builtin_instruction(const std::vector<std::string>&);
     void execute_instruction_bg(size_t);
+
+    std::string build_information();
 private:
     // typedef void(shell::*internal_instruction_handler)(void);
     using internal_instruction_handler = void(shell::*)(const std::vector<std::string>&);
@@ -38,6 +41,9 @@ private:
         size_t _min_args = 1;
         size_t _max_args = 1;
     };
+
+    bool internal_instruction_check(const std::string&, const std::vector<std::string>&);
+    bool is_builtin_instruction(const std::string&) const;
 
     void cwd(const std::vector<std::string>&);
     void cd(const std::vector<std::string>&);
@@ -59,8 +65,9 @@ private:
     std::unordered_set<pid_t> _child_processes;
     std::unordered_set<pid_t> _current_processes;
 
-    // std::filesystem::path _cwd;
-    // std::filesystem::path _home_dir;
+    std::filesystem::path _cwd;
+    std::filesystem::path _prev_cwd;
+    std::filesystem::path _home_dir;
 
     trie_tree _cmd_symbol_dict;
     // trie_tree _cmd_dict;
@@ -70,8 +77,8 @@ private:
     // const std::unordered_map<std::string, std::function<void()>> _cmd_map;
     // const std::unordered_set<std::string> _path_map;
 
-    const std::unordered_map<std::string, internal_instruction> _internal_instruction = {
-        {"cwd", {&shell::cwd}}, {"cd", {&shell::cd}},
+    const std::unordered_map<std::string, internal_instruction> _builtin_instruction = {
+        {"cwd", {&shell::cwd}}, {"cd", {&shell::cd, 1, 0}},
         {"history", {&shell::history}}, {"quit", {&shell::quit}},
         {"bg", {&shell::bg}}, {"job", {&shell::job}},
         {"echo", {&shell::echo, 1, 0}}

@@ -6,7 +6,7 @@ int main(void) {
     asp::shell _shell(_editor);
     while (true) {
         if (!_shell.wait()) break;
-        _shell.compile();
+        if (!_shell.compile()) continue;
         _shell.execute();
     }
     return 0;

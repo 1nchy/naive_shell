@@ -28,7 +28,7 @@ public:
     // std::ostream& out() override { return _os; }
     int out() const override { return _out; }
     // void show_information() override { _os << "[1nchy]";}
-    void show_information() override { write(_out, "[1nchy]", 8); }
+    void show_information(const std::string& _s) override { write(_out, _s.data(), _s.size()); }
     // void show_prompt() override { _os << _prompt; }
     void show_prompt() override { write(_out, _prompt.c_str(), _prompt.size()); }
     const std::string& line() override;
