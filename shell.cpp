@@ -345,8 +345,8 @@ void shell::cd(const std::vector<std::string>& _args) {
     _prev_cwd = _cwd;
     _cwd = std::filesystem::current_path();
 }
-void shell::cwd(const std::vector<std::string>& _args) {
-    if (!internal_instruction_check("cwd", _args)) {
+void shell::pwd(const std::vector<std::string>& _args) {
+    if (!internal_instruction_check("pwd", _args)) {
         exit(EXIT_FAILURE);
     }
     // const auto& _cwd_str = _cwd.string();
@@ -355,7 +355,9 @@ void shell::cwd(const std::vector<std::string>& _args) {
     // write(stdout, _cwd_str.c_str(), _cwd_str.size());
 }
 void shell::history(const std::vector<std::string>& _args) {}
-void shell::quit(const std::vector<std::string>& _args) {}
+void shell::quit(const std::vector<std::string>& _args) {
+    exit(EXIT_FAILURE);
+}
 void shell::bg(const std::vector<std::string>& _args) {}
 void shell::job(const std::vector<std::string>& _args) {}
 void shell::echo(const std::vector<std::string>& _args) {}

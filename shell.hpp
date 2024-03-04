@@ -47,7 +47,7 @@ private:
     bool internal_instruction_check(const std::string&, const std::vector<std::string>&);
     bool is_builtin_instruction(const std::string&) const;
 
-    void cwd(const std::vector<std::string>&);
+    void pwd(const std::vector<std::string>&);
     void cd(const std::vector<std::string>&);
     void history(const std::vector<std::string>&);
     void quit(const std::vector<std::string>&);
@@ -76,7 +76,7 @@ private:
     // const std::unordered_set<std::string> _path_map;
 
     const std::unordered_map<std::string, internal_instruction> _builtin_instruction = {
-        {"cwd", {&shell::cwd}}, {"cd", {&shell::cd, 1, 0}},
+        {"pwd", {&shell::pwd}}, {"cd", {&shell::cd, 1, 0}},
         {"history", {&shell::history}}, {"quit", {&shell::quit}},
         {"bg", {&shell::bg}}, {"job", {&shell::job}},
         {"echo", {&shell::echo, 1, 0}}
