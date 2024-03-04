@@ -94,6 +94,11 @@ $ ls | grep hpp | sort -r | cat [< out_file > in_file]
 |D||dup2(out), dup2(in)|
 |B|after fork D|close(out), close(E.in)|
 
+### 命令/指令管理
+这里我们特别把单独的不可拆分的可执行单元称为**指令**，把用管道符号`|`连接的若干指令称为**命令**，把只包含一条指令的命令称为单指令。容易注意到，命令是由`||`、`&&`、`;`、`&`这些命令分隔符隔开的，而指令往往是由管道符号`|`隔开。我们把由命令分隔符连接的若干命令称为**命令序列**。
+
+因此我们在解释命令序列的时候，需要定义下面三种函数`build_word`、`build_instruction`、`build_command`。
+
 ### shell 类型
 shell 应该保存以下的内容
 > cwd 等环境变量

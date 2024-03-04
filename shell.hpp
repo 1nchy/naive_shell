@@ -8,6 +8,8 @@
 
 #include <iostream>
 
+#include "command.hpp"
+
 #include "virtual_editor.hpp"
 
 #include "trie_tree.hpp"
@@ -26,11 +28,10 @@ private:
     // bool parse(const std::string& _s);
     void reset();
     size_t combine_instruction(size_t);
-    void execute_combine_instruction(size_t, size_t);
+
+    void execute_command(const command&);
     void execute_instruction(const std::vector<std::string>&);
     void execute_builtin_instruction(const std::vector<std::string>&);
-
-    void execute_combine_instruction_bg(size_t, size_t);
 
     std::string build_information();
 private:
@@ -56,13 +57,9 @@ private:
 
 private:
     shell_editor& _editor;
-    // std::istream& _is; // for editor
-    // std::ostream& _os; // for editor
-    std::vector<std::vector<std::string>> _parsed_command;
-    std::vector<std::pair<std::string, std::string>> _instruction_redirection;
-    std::vector<short> _instruction_redirection_type; // 0 none, 1 create, 2 append
-    std::vector<std::string> _instruction_relation;
-    std::vector<bool> _background_instruction;
+    // std::vector<command> _parsed_command;
+    command_sequence _commands;
+    // std::vector<std::string> _command_relation;
     std::unordered_set<pid_t> _child_processes;
     std::unordered_set<pid_t> _current_processes;
 

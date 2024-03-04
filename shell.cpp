@@ -32,14 +32,9 @@ shell::~shell() {
 
 }
 bool shell::wait() {
-    size_t _k = 0; // instruction sequence
     std::string _word;
     std::string _relation;
-    bool _in_ready = false; std::string _redirect_in; 
-    bool _out_ready = false; std::string _redirect_out; short _redirect_out_type = 0;
-    bool _need_further_input = false;
     bool _line_parsed = false;
-    bool _background_mark = false;
 
     _editor.show_information(build_information());
     reset();
@@ -48,55 +43,9 @@ bool shell::wait() {
     if (_s.empty()) return false;
     size_t _i = 0; // index of command string
 
-    auto build_word = [&]() {
-        if (_word.empty()) return;
-        _need_further_input = false;
-        if (_in_ready) {
-            _redirect_in = _word;
-            _in_ready = false;
-        }
-        else if (_out_ready) {
-            _redirect_out = _word;
-            _out_ready = false;
-        }
-        else {
-            if (this->_parsed_command.size() <= _k) {
-                this->_parsed_command.emplace_back();
-            }
-            assert(this->_parsed_command.size() == _k + 1);
-            this->_parsed_command[_k].push_back(_word);
-        }
-        _word.clear();
-    };
-    auto build_instruction = [&]() {
-        assert(this->_instruction_relation.size() == _k);
-        assert(this->_instruction_redirection.size() == _k);
-        if (_k == this->_parsed_command.size()) return;
-        this->_instruction_relation.emplace_back(_relation);
-        this->_instruction_redirection.emplace_back(_redirect_in, _redirect_out);
-        this->_instruction_redirection_type.emplace_back(_redirect_out_type);
-        this->_background_instruction.emplace_back(_background_mark);
-        ++_k;
-        _relation.clear();
-        _redirect_in.clear(); _redirect_out.clear(); _redirect_out_type = 0;
-        _in_ready = false; _out_ready = false; _background_mark = false;
-    };
-    auto build_redirection = [&]() { // ignore the difference between < and <<
-        if (_relation == "<" /*|| _relation == "<<"*/) {
-            _in_ready = true;
-        }
-        else if (_relation == ">") {
-            _out_ready = true;
-            _redirect_out_type = 1;
-        }
-        else if (_relation == ">>") {
-            _out_ready = true;
-            _redirect_out_type = 2;
-        }
-    };
     auto end_of_line = [&]() {
-        build_word();
-        if (_need_further_input) {
+        this->_commands.build_word(_word); _word.clear();
+        if (this->_commands.further_input()) {
             do {
             _editor.show_prompt();
             _s = _editor.line();
@@ -105,7 +54,8 @@ bool shell::wait() {
             _line_parsed = false;
             return;
         }
-        build_instruction();
+        this->_commands.build_instruction();
+        this->_commands.build_command(_relation);
         _line_parsed = true;
     };
 
@@ -150,7 +100,7 @@ bool shell::wait() {
             // else if (_c == '\"') {}
 
             if (_c == ' ') { // build word
-                build_word();
+                _commands.build_word(_word); _word.clear();
                 break;
             }
 
@@ -165,23 +115,29 @@ bool shell::wait() {
                 continue;
             }
             // 
-            build_word();
+            _commands.build_word(_word); _word.clear();
             _relation = _s.substr(_i, _l);
             _i += _l;
-            if (_relation == "|" || _relation == "||" || _relation == ";" || _relation == "&&") {
-                build_instruction();
-                _need_further_input = true;
+            if (_relation == "|") {
+                _commands.build_instruction();
+                _commands.need_further_input();
+                break;
+            }
+            else if (_relation == "||" || _relation == ";" || _relation == "&&") {
+                _commands.build_instruction();
+                _commands.build_command(_relation);
+                _commands.need_further_input();
                 break;
             }
             else if (_relation == ">" || _relation  == ">>" || _relation == "<" /*|| _relation == "<<"*/) {
-                build_redirection();
-                _need_further_input = true;
+                _commands.prepare_redirection(_relation);
+                _commands.need_further_input();
                 break;
             }
             else if (_relation == "&") {
                 _relation.clear();
-                _background_mark = true;
-                build_instruction();
+                _commands.build_instruction();
+                _commands.build_command(_relation, true);
                 break;
             }
         }
@@ -190,81 +146,45 @@ bool shell::wait() {
 }
 
 bool shell::compile() { // further check and extract
-    const size_t _n = _parsed_command.size();
-    assert(_instruction_relation.size() == _n);
-    assert(_instruction_redirection.size() == _n);
-    assert(_instruction_redirection_type.size() == _n);
-
-    for (size_t _i = 0; _i < _n; ++_i) {
-        if (_instruction_relation[_i] == "|") { // pipe
-            if (!_instruction_redirection[_i].first.empty() || !_instruction_redirection[_i].second.empty()) {
-                return false;
-            }
-            if (_instruction_redirection_type[_i] != 0) {
-                return false;
-            }
-        }
-    }
     return true;
 }
 
 bool shell::execute() {
-    for (size_t _b = 0; _b < _parsed_command.size();) {
-        // instruction division
-        size_t _e = combine_instruction(_b);
-        execute_combine_instruction(_b, _e);
-        _b = _e;
+    for (size_t _i = 0; _i < _commands.size(); ++_i) {
+        execute_command(_commands._parsed_command[_i]);
     }
     return true;
 }
 
 void shell::reset() {
-    _parsed_command.clear();
-    _instruction_redirection.clear();
-    _instruction_redirection_type.clear();
-    _instruction_relation.clear();
+    _commands.reset();
 }
 
-size_t shell::combine_instruction(size_t _b) {
-    size_t _e = _b;
-    // _instruction_relation.back() must be ""
-    for (; _e != _instruction_relation.size(); ++_e) {
-        const auto& _relation = _instruction_relation[_e];
-        if (_relation == "|") {
-        }
-        else {
-            break;
-        }
-    }
-    ++_e;
-    return _e;
-}
+void shell::execute_command(const command& _cmd) {
+    const auto& _main_ins = _cmd._instructions.back();
 
-void shell::execute_combine_instruction(size_t _b, size_t _e) {
-    const auto& _main_cmd = _parsed_command[_e - 1];
-
-    if (_e - _b == 1 && is_builtin_instruction(_main_cmd.at(0))) {
+    if (_cmd.size() == 1 && is_builtin_instruction(_main_ins.front())) {
         // redirect
         int _old_in = dup(_editor.in());
         int _old_out = dup(_editor.out());
         FILE* _input_file = nullptr; FILE* _output_file = nullptr;
-        if (!_instruction_redirection[_e - 1].first.empty()) {
-            _input_file = fopen(_instruction_redirection[_e - 1].first.c_str(), "r+");
+        if (!_cmd._redirect_in.empty()) {
+            _input_file = fopen(_cmd._redirect_in.c_str(), "r+");
             if (_input_file != nullptr) {
                 dup2(fileno(_input_file), _editor.in());
             }
         }
-        if (!_instruction_redirection[_e - 1].second.empty()) {
-            if (_instruction_redirection_type[_e - 1] == 1) {
-                _output_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "w+");
+        if (!_cmd._redirect_out.empty()) {
+            if (_cmd._redirect_out_type == 1) {
+                _output_file = fopen(_cmd._redirect_out.c_str(), "w+");
                 dup2(fileno(_output_file), _editor.out());
             }
-            else if (_instruction_redirection_type[_e - 1] == 2) {
-                _output_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "a+");
+            else if (_cmd._redirect_out_type == 2) {
+                _output_file = fopen(_cmd._redirect_out.c_str(), "a+");
                 dup2(fileno(_output_file), _editor.out());
             }
         }
-        execute_builtin_instruction(_main_cmd);
+        execute_builtin_instruction(_main_ins);
         // re-redirect
         if (_input_file != nullptr) {
             fclose(_input_file);
@@ -283,35 +203,36 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
         // std::vector<int> _children_pipe;
         int _child_in_fd[2]; int _child_out_fd[2];
         int _temp_fd = -1;
-        if (_e - _b >= 2) {
+        const size_t _n = _cmd.size();
+        if (_n >= 2) {
             pipe(_child_in_fd); // pipe between main child process and 1st process
         }
-        for (size_t _i = 2; _i <= _e - _b; ++_i) {
+        for (size_t _i = 2; _i <= _n; ++_i) {
             std::swap(_child_in_fd, _child_out_fd);
-            if (_i != _e - _b) {
+            if (_i != _n) {
                 pipe(_child_in_fd);
             }
             _pid = fork();
             if (_pid == 0) { // other process
-                const auto& _cmd = _parsed_command[_e - _i];
+                const auto& _ins = _cmd._instructions[_n - _i];
                 // redirection
                 close(_child_out_fd[0]);
                 dup2(_child_out_fd[1], _editor.out());
-                if (_i != _e - _b) {
+                if (_i != _n) {
                     close(_child_in_fd[1]);
                     dup2(_child_in_fd[0], _editor.in());
                 }
                 FILE* _input_file = nullptr;
-                if (_i == _e - _b) { // file redirection
-                    if (!_instruction_redirection[_e - 1].first.empty()) {
-                        _input_file = fopen(_instruction_redirection[_e - 1].first.c_str(), "r+");
+                if (_i == _n) { // file redirection
+                    if (!_cmd._redirect_in.empty()) {
+                        _input_file = fopen(_cmd._redirect_in.c_str(), "r+");
                         if (_input_file != nullptr) {
                             dup2(fileno(_input_file), _editor.in());
                         }
                     }
                 }
 
-                execute_instruction(_cmd);
+                execute_instruction(_ins);
                 // execvp(_cmd[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
                 if (_input_file != nullptr) fclose(_input_file);
                 exit(EXIT_SUCCESS);
@@ -336,28 +257,27 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
             dup2(_temp_fd, _editor.in());
         }
 
-        FILE* _input_file = nullptr;
-        FILE* _output_file = nullptr;
-        if (_e - _b < 2) {
-            if (!_instruction_redirection[_e - 1].first.empty()) {
-                _input_file = fopen(_instruction_redirection[_e - 1].first.c_str(), "r+");
+        FILE* _input_file = nullptr; FILE* _output_file = nullptr;
+        if (_n < 2) {
+            if (!_cmd._redirect_in.empty()) {
+                _input_file = fopen(_cmd._redirect_in.c_str(), "r+");
                 if (_input_file != nullptr) {
                     dup2(fileno(_input_file), _editor.in());
                 }
             }
         }
-        if (!_instruction_redirection[_e - 1].second.empty()) {
-            if (_instruction_redirection_type[_e - 1] == 1) {
-                _output_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "w+");
+        if (!_cmd._redirect_out.empty()) {
+            if (_cmd._redirect_out_type == 1) {
+                _output_file = fopen(_cmd._redirect_out.c_str(), "w+");
                 dup2(fileno(_output_file), _editor.out());
             }
-            else if (_instruction_redirection_type[_e - 1] == 2) {
-                _output_file = fopen(_instruction_redirection[_e - 1].second.c_str(), "a+");
+            else if (_cmd._redirect_out_type == 2) {
+                _output_file = fopen(_cmd._redirect_out.c_str(), "a+");
                 dup2(fileno(_output_file), _editor.out());
             }
         }
 
-        execute_instruction(_main_cmd);
+        execute_instruction(_main_ins);
 
         for (const auto& _i : _children) {
             waitpid(_i, nullptr, WUNTRACED);
@@ -377,7 +297,7 @@ void shell::execute_combine_instruction(size_t _b, size_t _e) {
 
 void shell::execute_instruction(const std::vector<std::string>& _args) {
     if (_builtin_instruction.count(_args[0].c_str())) { // for built-in instruction
-        (this->*_builtin_instruction.at(_args[0])._handler)(_args);
+        execute_builtin_instruction(_args);
         return;
     }
     else { // for other instruction
@@ -391,13 +311,7 @@ void shell::execute_instruction(const std::vector<std::string>& _args) {
     }
 }
 void shell::execute_builtin_instruction(const std::vector<std::string>& _args) {
-    if (is_builtin_instruction(_args[0].c_str())) { // for built-in instruction
-        (this->*_builtin_instruction.at(_args[0])._handler)(_args);
-    }
-}
-
-void shell::execute_combine_instruction_bg(size_t _b, size_t _e) {
-    const auto& _main_cmd = _parsed_command[_e - 1];
+    (this->*_builtin_instruction.at(_args[0])._handler)(_args);
 }
 
 std::string shell::build_information() {

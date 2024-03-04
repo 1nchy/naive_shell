@@ -12,24 +12,24 @@ struct command;
 struct command_sequence;
 
 struct command {
-    std::vector<std::vector<std::string>> _ins;
+    std::vector<std::vector<std::string>> _instructions;
     std::string _redirect_in;
     std::string _redirect_out;
     short _redirect_out_type = 0; // 0 none, 1 create, 2 append
     bool _background = false;
 
     const std::vector<std::string>& main_ins() const {
-        if (_ins.empty()) exit(EXIT_FAILURE);
-        return _ins.back();
+        if (_instructions.empty()) exit(EXIT_FAILURE);
+        return _instructions.back();
     }
     void append_word(const std::string& _s) {
-        if (_ins.empty()) exit(EXIT_FAILURE);
-        _ins.back().emplace_back(_s);
+        if (_instructions.empty()) exit(EXIT_FAILURE);
+        _instructions.back().emplace_back(_s);
     }
     void create_instruction() {
-        _ins.emplace_back();
+        _instructions.emplace_back();
     }
-    size_t size() const { return _ins.size(); }
+    size_t size() const { return _instructions.size(); }
 };
 
 struct command_sequence {

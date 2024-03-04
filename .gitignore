@@ -8,5 +8,6 @@
 !virtual_editor.cpp
 !shell.cpp
 !trie_tree.cpp
+!command.cpp
 
 !main.cpp
