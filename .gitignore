@@ -9,5 +9,6 @@
 !shell.cpp
 !trie_tree.cpp
 !command.cpp
+!signal_stack.cpp
 
 !main.cpp
