@@ -1,13 +1,13 @@
 #include "editor.hpp"
 #include "shell.hpp"
 
+using asp::shell_singleton;
+
 int main(void) {
-    asp::editor _editor;
-    asp::shell _shell(_editor);
     while (true) {
-        if (!_shell.wait()) break;
-        if (!_shell.compile()) continue;
-        _shell.execute();
+        if (!shell_singleton.wait()) break;
+        if (!shell_singleton.compile()) continue;
+        shell_singleton.execute();
     }
     return 0;
 }

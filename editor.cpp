@@ -3,24 +3,23 @@
 #include <termios.h>
 
 #include <algorithm>
+#include <csignal>
 
 namespace asp {
-// editor::editor(std::istream& _is, std::ostream& _os, const std::string& _prompt)
-//  : _is(_is), _os(_os), _prompt(_prompt) {
-//     load_history();
-// }
+editor default_editor;
+
 editor::editor(int _in, int _out, const std::string& _prompt)
  : _in(_in), _out(_out), _prompt(_prompt) {
-
+    load_history();
 }
 editor::~editor() {
     
 }
 bool editor::wait() {
-    // out() << _prompt;
     clear();
-    /*int*/char _c; _history_pointer = _history.cend(); _end_of_file = false;
-    system("stty raw");
+    char _c; _history_pointer = _history.cend(); _end_of_file = false;
+    // system("stty raw");
+    _M_raw();
 
     termios _new_setting, _init_setting;
     tcgetattr(in(), &_init_setting);
@@ -28,41 +27,51 @@ bool editor::wait() {
     _new_setting.c_lflag &= ~ECHO;
     tcsetattr(in(), TCSANOW, &_new_setting);
 
-    // while ((_c = in().get()) != EOF) {
     while (true) {
-    read(_in, &_c, sizeof(_c));
-
+    const auto _r = _M_read(_c);
+    if (_r < 0) {
+        if (errno == EINTR) {
+            _M_write("intr break read\n");
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    else if (_r == 0) {
+        _end_of_file = true;
+        tcsetattr(in(), TCSANOW, &_init_setting);
+        // system("stty cooked");
+        _M_cooked();
+        _M_write('\n');
+        return false;
+    }
 
     if (_c == '\r' || _c == '\n') {
-        // viewer_back(2);
         write_back();
         if (empty()) continue;
         build_command();
         tcsetattr(in(), TCSANOW, &_init_setting);
-        system("stty cooked");
-        // out() << std::endl;
-        write(_out, "\n", 1);
+        // system("stty cooked");
+        _M_cooked();
+        _M_write('\n');
         _history.emplace_back(_command);
         return true;
     }
     else if (_c == '\04' || _c == '\03') { // ctrl+c or ctrl+d
-        // viewer_back(2);
         write_back();
         _end_of_file = true;
         tcsetattr(in(), TCSANOW, &_init_setting);
-        system("stty cooked");
-        // out() << std::endl;
-        write(_out, "\n", 1);
+        // system("stty cooked");
+        _M_cooked();
+        _M_write('\n');
         return false;
     }
     else if (_c == '\033') { // _c == '^['
-        // in().get(); // '['
-        // /*int*/char _subc = in().get();
         char _subc;
-        read(_in, &_subc, sizeof(_subc));
-        read(_in, &_subc, sizeof(_subc));
+        _M_read(_subc);
+        _M_read(_subc);
         if (_subc == 'A') { // up arrow ^[[A
-            // viewer_back(4);
             cursor_back(_front.size());
             fill_blank(0);
             cursor_back(_front.size() + _back.size());
@@ -70,21 +79,18 @@ bool editor::wait() {
                 clear();
             }
             else if (_history_pointer == _history.cbegin()) {
-                // out() << *_history_pointer;
-                write(_out, _history_pointer->data(), _history_pointer->size() * sizeof(char));
+                _M_write(*_history_pointer);
                 clear();
                 _front.assign(_history_pointer->cbegin(), _history_pointer->cend());
             }
             else {
                 --_history_pointer;
-                // out() << *_history_pointer;
-                write(_out, _history_pointer->data(), _history_pointer->size() * sizeof(char));
+                _M_write(*_history_pointer);
                 clear();
                 _front.assign(_history_pointer->cbegin(), _history_pointer->cend());
             }
         }
         else if (_subc == 'B') { // down arrow ^[[B
-            // viewer_back(4);
             cursor_back(_front.size());
             fill_blank(0);
             cursor_back(_front.size() + _back.size());
@@ -95,16 +101,12 @@ bool editor::wait() {
             }
             else {
                 ++_history_pointer;
-                // out() << *_history_pointer;
-                write(_out, _history_pointer->data(), _history_pointer->size() * sizeof(char));
+                _M_write(*_history_pointer);
                 clear();
                 _front.assign(_history_pointer->cbegin(), _history_pointer->cend());
             }
         }
         else if (_subc == 'D') { // left arrow ^[[D
-            // viewer_back(4);
-            // write_back();
-            // cursor_back(_back.size());
             if (!_front.empty()) {
                 _back.push_back(_front.back());
                 _front.pop_back();
@@ -112,7 +114,6 @@ bool editor::wait() {
             }
         }
         else if (_subc == 'C') { // right arrow ^[[C
-            // viewer_back(4);
             if (!_back.empty()) {
                 write_back();
                 _front.push_back(_back.back());
@@ -121,21 +122,18 @@ bool editor::wait() {
             }
         }
         else if (_subc == 'H') { // home key ^[[H
-            // viewer_back(4);
             write_back();
             _back.insert(_back.end(), _front.crbegin(), _front.crend());
             _front.clear();
             cursor_back(_back.size());
         }
         else if (_subc == 'F') { // end key ^[[F
-            // viewer_back(4);
             write_back();
             _front.insert(_front.end(), _back.crbegin(), _back.crend());
             _back.clear();
         }
         else if (_subc == '3') { // del key ^[[3~
-            // in().get(); // get '~'
-            read(_in, &_subc, sizeof(_subc));
+            _M_read(_subc); // get '~'
             if (!_back.empty()) {
                 // viewer_back(5);
                 _back.pop_back();
@@ -143,9 +141,6 @@ bool editor::wait() {
                 fill_blank(1);
                 cursor_back(_back.size() + 1);
             }
-            // else {
-            //     viewer_back(5);
-            // }
         }
     }
     else if (_c == 127) { // backspace
@@ -156,30 +151,20 @@ bool editor::wait() {
             fill_blank(1);
             cursor_back(_back.size() + 1);
         }
-        // else {
-        //     viewer_back(2);
-        // }
     }
     else if (_c == '\t') {
         
     }
     else {
-        // if (_c == ' ' && _front.empty()) {
-        //     viewer_back(1);
-        //     if (!_back.empty()) {
-        //         out() << _back.back();
-        //         viewer_back(1);
-        //     }
-        //     continue;
-        // }
         _front.push_back(_c);
-        write(out(), &_c, sizeof(_c));
+        _M_write(_c);
         write_back();
         cursor_back(_back.size());
     }
     }
 
-    system("stty cooked");
+    // system("stty cooked");
+    _M_cooked();
     tcsetattr(in(), TCSANOW, &_init_setting);
     return true;
 }
@@ -208,43 +193,45 @@ void editor::del(size_t _n) {
     }
 }
 void editor::cursor_back(size_t _n) {
-    // for (size_t _i = 0; _i < _n; ++_i) printf("\b");
-    for (size_t _i = 0; _i < _n; ++_i) write(_out, "\b", 1);
+    for (size_t _i = 0; _i < _n; ++_i) _M_write('\b');
 }
 void editor::viewer_back(size_t _n) {
     cursor_back(_n);
     fill_blank(_n);
     cursor_back(_n);
 }
-void editor::viewer_del(size_t _n) {
-    // todo
-}
 void editor::fill_blank(size_t _n) {
-    // printf("%*s", int(_n == 0 ? _front.size() + _back.size() : _n), "");
     if (_n == 0) { _n = _front.size() + _back.size(); }
     for (size_t _i = 0; _i < _n; ++_i) {
-        write(_out, " ", 1);
+        _M_write(' ');
     }
 }
 void editor::write_front() {
     std::for_each(_front.cbegin(), _front.cend(), [this](char _c) {
-        // _os << _c;
-        write(_out, &_c, sizeof(char));
+        _M_write(_c);
     });
 }
 void editor::write_back(size_t _i) {
     if (_i == 0) _i = _back.size();
     for (size_t _j = _back.size() - 1; _j >= 0 && _i > 0; --_j, --_i) {
-        write(_out, &_back[_j], sizeof(char));
+        _M_write(_back[_j]);
     }
-    // std::for_each(_back.crbegin(), _back.crend(), [this](char _c) {
-    //     // _os << _c;
-    //     write(_out, &_c, sizeof(char));
-    // });
 }
 void editor::tab() {}
 
 void editor::load_history() {}
+
+void editor::_M_cooked() {
+    _local_ss.build(SIGCHLD, nullptr);
+    system("stty cooked");
+    _local_ss.restore(SIGCHLD);
+}
+void editor::_M_raw() {
+    _local_ss.build(SIGCHLD, nullptr);
+    system("stty raw");
+    _local_ss.restore(SIGCHLD);
+}
+
 void editor::build_command() {
     _command.clear();
     _command.reserve(_front.size() + _back.size());

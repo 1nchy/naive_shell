@@ -16,6 +16,11 @@
 
 namespace asp {
 class shell;
+extern shell shell_singleton;
+
+void shell_sigchld_handler(int _sig);
+void shell_sigtstp_handler(int _sig);
+void shell_sigint_handler(int _sig);
 
 class shell {
 public:
@@ -24,7 +29,13 @@ public:
     bool wait();
     bool compile();
     bool execute();
+public: // signal
+    void sigchld_handler(int);
+    void sigtstp_handler(int);
+    void sigint_handler(int);
+
 private:
+    void line();
     // bool parse(const std::string& _s);
     void reset();
     size_t combine_instruction(size_t);
@@ -34,10 +45,9 @@ private:
     void execute_builtin_instruction(const std::vector<std::string>&);
 
     std::string build_information();
-private:
+private: // about built-in instruction
     // typedef void(shell::*internal_instruction_handler)(void);
     using internal_instruction_handler = void(shell::*)(const std::vector<std::string>&);
-    // using internal_instruction_handler = void(void);
     struct internal_instruction {
         internal_instruction_handler _handler;
         size_t _min_args = 1;
@@ -52,16 +62,22 @@ private:
     void history(const std::vector<std::string>&);
     void quit(const std::vector<std::string>&);
     void bg(const std::vector<std::string>&);
-    void job(const std::vector<std::string>&);
+    void fg(const std::vector<std::string>&);
+    void jobs(const std::vector<std::string>&);
+    void kill(const std::vector<std::string>&);
     void echo(const std::vector<std::string>&);
+    void sleep(const std::vector<std::string>&);
+private:
+    size_t search_in_background(pid_t _pid);
+    void waitpid_handler(pid_t _pid, int _status);
 
 private:
+    std::string _line;
     shell_editor& _editor;
-    // std::vector<command> _parsed_command;
     command_sequence _commands;
-    // std::vector<std::string> _command_relation;
-    std::unordered_set<pid_t> _child_processes;
-    std::unordered_set<pid_t> _current_processes;
+    std::unordered_set<pid_t> _fg_proc;
+    std::unordered_map<size_t, pid_t> _bg_proc;
+    size_t _task_serial_i = 1;
 
     std::filesystem::path _cwd;
     std::filesystem::path _prev_cwd;
@@ -76,10 +92,12 @@ private:
     // const std::unordered_set<std::string> _path_map;
 
     const std::unordered_map<std::string, internal_instruction> _builtin_instruction = {
-        {"pwd", {&shell::pwd}}, {"cd", {&shell::cd, 1, 0}},
+        {"pwd", {&shell::pwd}}, {"cd", {&shell::cd, 1, 2}},
         {"history", {&shell::history}}, {"quit", {&shell::quit}},
-        {"bg", {&shell::bg}}, {"job", {&shell::job}},
-        {"echo", {&shell::echo, 1, 0}}
+        {"bg", {&shell::bg, 2, 2}}, {"fg", {&shell::fg, 2, 2}},
+        {"jobs", {&shell::jobs}}, {"kill", {&shell::kill, 2, 2}},
+        {"echo", {&shell::echo, 1, 0}},
+        {"sleep", {&shell::sleep, 2, 2}},
     };
 };
 

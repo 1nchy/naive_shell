@@ -10,9 +10,11 @@
 #include <iostream>
 
 #include "virtual_editor.hpp"
+#include "signal_stack.hpp"
 
 namespace asp {
 class editor;
+extern editor default_editor;
 
 class editor : public shell_editor {
 public:
@@ -39,7 +41,6 @@ private:
     void del(size_t);
     void cursor_back(size_t); // move cursor back
     void viewer_back(size_t);
-    void viewer_del(size_t);
     void fill_blank(size_t);
     void write_front();
     void write_back(size_t _i = 0);
@@ -50,7 +51,13 @@ private:
 
     void load_history();
 
+    void _M_cooked();
+    void _M_raw();
+
     // void erase_combine_key();
+    ssize_t _M_read(char& _c) { return read(_in, &_c, sizeof(char)); }
+    ssize_t _M_write(char _c) { return write(_out, &_c, sizeof(char)); }
+    ssize_t _M_write(const std::string& _s) { return write(_out, _s.data(), _s.size() * sizeof(char)); }
 
 private:
     std::vector<std::string> _history;
@@ -62,6 +69,8 @@ private:
     bool _end_of_file = false;
 
     int _in; int _out;
+
+    signal_stack _local_ss;
 
     // std::istream& _is;
     // std::ostream& _os;
