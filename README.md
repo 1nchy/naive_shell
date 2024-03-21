@@ -56,6 +56,22 @@ shell 与 editor 的输入输出交互：
 ### 信号处理
 对于信号的处理，我们应该放在 asp_shell 的主函数中。我们先对 `SIGINT`，`SIGSTSTP` 信号做出处理。对于 `ctrl+d` 的信号处理，我们放在 命令字符串编辑模块 中。
 
+我们需要显式处理的信号有三个：`SIGINT`，`SIGTSTP`，`SIGCHLD`。其中前两者是我们主动发出的信号，后面那个是我们被动处理的信号。和信号相关的内置函数有 `jobs`，`fg`，`bg`。
+
+此外，为了维护前台与后台进程/任务，我们用 `fg_process` 和 `bg_process` 来记录。
+
+|信号|SIGINT|SIGTSTP|
+|:-:|:-:|:-:|
+|fg|kill(SIGINT)|kill(SIGSTOP)|
+|bg|||
+|other|||
+
+|SIGCHLD action|WIFSTOPPED|WIFEXITED|
+|:-:|:-:|:-:|
+|fg|fg.del<br/>bg.add|fg.del|
+|bg|-|bg.del<br/>waitpid|
+|other|-|-|
+
 ### 进程管理
 我们的进程管理将仿照 BonusShell 的管理方式。即 shell 主进程创建子进程以执行命令。
 
