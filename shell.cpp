@@ -201,10 +201,8 @@ bool shell::execute() {
 }
 
 void shell::sigchld_handler(int) {
-    while (1) {
-        int _status = 0;
-        pid_t _pid = waitpid(-1, &_status, WNOHANG);
-        if (_pid == -1 || _pid == 0) break;
+    int _status = 0; pid_t _pid;
+    while ((_pid = waitpid(-1, &_status, WNOHANG)) > 0) {
         printf("receive sigchld(%d)\n", _pid);
         waitpid_handler(_pid, _status);
     }
@@ -285,9 +283,8 @@ void shell::execute_command(const command& _cmd) {
         return;
     }
 
-    _ss.reset(SIGCHLD); // tbd
+    _ss.reset(SIGCHLD);
     _ss.reset(SIGTSTP);
-    // _ss.reset(SIGSTOP); // tbd
     _ss.reset(SIGINT);
     _ss.reset(SIGTTIN);
     _ss.reset(SIGTTOU);
@@ -338,11 +335,11 @@ void shell::execute_command(const command& _cmd) {
             // close out fd
             close(_child_out_fd[1]);
             if (_i == 2) {
-                // dup2(_child_out_fd[0], _editor.in());
+                // ~~dup2(_child_out_fd[0], _editor.in())~~;
                 /**
                  * 后续所有子进程的文件描述符都将继承该主子进程，因此对该主子进程文件描述符的复制应该放在最后
                 */
-                _temp_fd = _child_out_fd[0];
+                _temp_fd = _child_out_fd[0]; // 主子进程从该文件描述符读取输入
             }
             else {
                 close(_child_out_fd[0]);
@@ -376,26 +373,11 @@ void shell::execute_command(const command& _cmd) {
         }
 
         execute_instruction(_main_ins);
-
-        // for (const auto& _i : _children) {
-        //     while (true) {
-        //     const auto _r = waitpid(_i, nullptr, WUNTRACED);
-        //     if (_r < 0) {
-        //         if (errno == EINTR) {
-        //             printf("waitpid interupted.\n");
-        //         }
-        //     }
-        //     break;
-        //     }
-        // }
-        // if (_input_file != nullptr) { fclose(_input_file); }
-        // if (_output_file != nullptr) { fclose(_output_file); }
         exit(EXIT_SUCCESS);
     }
     
-    _ss.restore(SIGCHLD); // tbd
+    _ss.restore(SIGCHLD);
     _ss.restore(SIGTSTP);
-    // _ss.restore(SIGSTOP); // tbd
     _ss.restore(SIGINT);
     _ss.restore(SIGTTIN);
     _ss.restore(SIGTTOU);
@@ -407,27 +389,17 @@ void shell::execute_command(const command& _cmd) {
         int _status = 0;
         tcsetpgrp(_editor.in(), _j.pgid());
         tcsetpgrp(_editor.out(), _j.pgid());
-        // waitpid(_pid, &_status, WUNTRACED); // todo
-        pid_t _r = waitpid(_pid, &_status, WSTOPPED);
-        if (_r < 0) {
-            if (errno == EINTR) {
-                printf("waitpid interupted.\n");
-            }
-        }
-        else {
-            waitpid_handler(_pid, _status);
-        }
+        while (waitpid(_pid, &_status, WSTOPPED) == -1 && errno == EINTR);
+        waitpid_handler(_pid, _status);
     }
     else {
-        // tcsetpgrp(_editor.out(), _j.pgid());
-        printf("[%ld] %d %s\n", _task_serial_i, _pid, _main_ins.front().c_str());
+        printf("[%ld](%d) %s\n", _task_serial_i, _pid, _main_ins.front().c_str());
         _j.set_serial(_task_serial_i);
         _proc_map.insert({_pid, _j});
         _bg_map[_task_serial_i++] = _pid;
     }
     return;
 }
-
 void shell::execute_instruction(const std::vector<std::string>& _args) {
     if (_builtin_instruction.count(_args[0].c_str())) { // for built-in instruction
         execute_builtin_instruction(_args);
@@ -461,6 +433,7 @@ std::string shell::build_information() {
     return _info;
 }
 
+/* built-in instruction implement */
 void shell::cd(const std::vector<std::string>& _args) {
     if (!internal_instruction_check("cd", _args)) {
         return;
@@ -518,7 +491,6 @@ void shell::fg(const std::vector<std::string>& _args) {
     }
     const pid_t _pid = _bg_map[_s];
     auto& _j = _proc_map.at(_pid);
-    printf("tcsetpgrp(%d)\n", _j.pgid());
     // tcsetattr(_editor.in(), TCSADRAIN, &_j._tmode);
     // tcsetattr(_editor.out(), TCSADRAIN, &_j._tmode);
     tcsetpgrp(_editor.in(), _j.pgid());
@@ -527,13 +499,8 @@ void shell::fg(const std::vector<std::string>& _args) {
     _bg_map.erase(_s);
     _j.set_serial();
     int _status;
-    while (1) {
-    pid_t _r = waitpid(_pid, &_status, WSTOPPED);
-    if (_r == -1 && errno == EINTR) {
-        printf("waitpid interupted.\n"); continue;
-    }
-    waitpid_handler(_pid, _status); break;
-    }
+    while (waitpid(_pid, &_status, WSTOPPED) == -1 && errno == EINTR);
+    waitpid_handler(_pid, _status);
 }
 void shell::jobs(const std::vector<std::string>& _args) {
     if (!internal_instruction_check("jobs", _args)) {
@@ -559,17 +526,10 @@ void shell::kill(const std::vector<std::string>& _args) {
     }
     pid_t _pid = _bg_map[_i];
     auto& _j = _proc_map.at(_pid);
-    ::kill(-_j.pgid(), SIGINT);
-    _bg_map.erase(_i);
-    _proc_map.erase(_pid);
+    ::kill(-_j.pgid(), SIGKILL);
     int _status;
-    while (1) {
-    pid_t _r = waitpid(_pid, &_status, WSTOPPED);
-    if (_r == -1 && errno == EINTR) {
-        printf("waitpid interupted.\n"); continue;
-    }
-    waitpid_handler(_pid, _status); break;
-    }
+    while (waitpid(_pid, &_status, WSTOPPED) == -1 && errno == EINTR);
+    waitpid_handler(_pid, _status);
 }
 void shell::echo(const std::vector<std::string>& _args) {}
 void shell::sleep(const std::vector<std::string>& _args) {
@@ -598,13 +558,7 @@ bool shell::is_builtin_instruction(const std::string& _cmd) const {
     return _builtin_instruction.count(_cmd);
 }
 
-size_t shell::search_in_background(pid_t _pid) {
-    for (const auto& _i : this->_bg_map) {
-        if (_i.second == _pid) return _i.first;
-    }
-    return 0;
-}
-
+/* process controller implement */
 void shell::waitpid_handler(pid_t _pid, int _status) {
     if (_pid == -1 || _pid == 0) return;
 

@@ -42,7 +42,6 @@ private:
     void line();
     // bool parse(const std::string& _s);
     void reset();
-    size_t combine_instruction(size_t);
 
     void execute_command(const command&);
     void execute_instruction(const std::vector<std::string>&);
@@ -71,9 +70,12 @@ private: // about built-in instruction
     void kill(const std::vector<std::string>&);
     void echo(const std::vector<std::string>&);
     void sleep(const std::vector<std::string>&);
-private:
-    size_t search_in_background(pid_t _pid);
+private: // process controller
     void waitpid_handler(pid_t _pid, int _status);
+
+private: // output function
+    void log(const char* _fmt, ...); // todo
+    void output(const char* _fmt, ...); // todo
 
 private:
     std::string _line;
