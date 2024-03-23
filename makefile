@@ -42,9 +42,9 @@ all:$(OBJS) $(THIRD_LIB)
 $(THIRD_LIB):
 	@make -C $@
 
-$(DEPS_DIR)/%.d: $(SRC_DIR)/%.$(EXTENSION)
-	@mkdir -p $(DEPS_DIR)
-	$(CC) $(CFLAGS) $(INCLUDE_FLAG) -MM $^ | sed 1's,^,$@ $(OBJ_DIR)/,' > $@
+# $(DEPS_DIR)/%.d: $(SRC_DIR)/%.$(EXTENSION)
+# 	@mkdir -p $(DEPS_DIR)
+# 	$(CC) $(CFLAGS) $(INCLUDE_FLAG) -MM $^ | sed 1's,^,$@ $(OBJ_DIR)/,' > $@
 
 # include $(DEPS)
 
