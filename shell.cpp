@@ -35,6 +35,15 @@ void shell_sigtstp_handler(int _sig) {
 void shell_sigint_handler(int _sig) {
     shell_singleton.sigint_handler(_sig);
 }
+void shell_sigpipe_handler(int _sig) {
+
+}
+void shell_sigttin_handler(int _sig) {
+    shell_singleton.sigttin_handler(_sig);
+}
+void shell_sigttou_handler(int _sig) {
+    shell_singleton.sigttou_handler(_sig);
+}
 
 shell::shell(shell_editor& _e)
  : _editor(_e) {
@@ -58,6 +67,10 @@ shell::shell(shell_editor& _e)
     _ss.build(SIGTSTP, shell_sigtstp_handler);
     // _ss.build(SIGSTOP, shell_sigtstp_handler); // tbd
     _ss.build(SIGINT, shell_sigint_handler);
+    // _ss.build(SIGTTIN, shell_sigttin_handler);
+    _ss.build(SIGTTIN, SIG_IGN);
+    // _ss.build(SIGTTOU, shell_sigttou_handler);
+    _ss.build(SIGTTOU, SIG_IGN);
 }
 shell::~shell() {
 
@@ -197,16 +210,31 @@ void shell::sigchld_handler(int) {
     }
 }
 void shell::sigtstp_handler(int) {
-    for (const auto& _p : this->_fg_proc) {
-        printf("send SIGSTOP to %d\n", _p);
-        ::kill(_p, SIGSTOP);
+    for (const auto& [_p, _j] : this->_proc_map) {
+        if (_j.foreground()) {
+            printf("send SIGSTOP to %d\n", _j.pid());
+            ::kill(-_j.pgid(), SIGSTOP);
+        }
     }
 }
 void shell::sigint_handler(int) {
-    for (const auto& _p : this->_fg_proc) {
-        printf("send SIGINT to %d\n", _p);
-        ::kill(_p, SIGINT);
+    for (const auto& [_p, _j] : this->_proc_map) {
+        if (_j.foreground()) {
+            printf("send SIGINT to %d\n", _j.pid());
+            ::kill(-_j.pgid(), SIGINT);
+        }
     }
+}
+void shell::sigpipe_handler(int) {
+
+}
+void shell::sigttin_handler(int) {
+    printf("receive sigttin\n");
+    // ::kill(getpid(), SIGCONT);
+}
+void shell::sigttou_handler(int) {
+    printf("receive sigttou\n");
+    // ::kill(getpid(), SIGCONT);
 }
 
 void shell::line() {
@@ -261,9 +289,13 @@ void shell::execute_command(const command& _cmd) {
     _ss.reset(SIGTSTP);
     // _ss.reset(SIGSTOP); // tbd
     _ss.reset(SIGINT);
+    _ss.reset(SIGTTIN);
+    _ss.reset(SIGTTOU);
 
     pid_t _pid = fork();
     if (_pid == 0) { // main child process
+        const pid_t _main_pid = getpid();
+        setpgid(_main_pid, _main_pid);
         std::vector<pid_t> _children;
         // std::vector<int> _children_pipe;
         int _child_in_fd[2]; int _child_out_fd[2];
@@ -279,6 +311,7 @@ void shell::execute_command(const command& _cmd) {
             }
             _pid = fork();
             if (_pid == 0) { // other process
+                setpgid(0, _main_pid);
                 const auto& _ins = _cmd._instructions[_n - _i];
                 // redirection
                 close(_child_out_fd[0]);
@@ -301,6 +334,7 @@ void shell::execute_command(const command& _cmd) {
                 // if (_input_file != nullptr) fclose(_input_file);
                 exit(EXIT_SUCCESS);
             }
+            setpgid(_pid, _main_pid);
             // close out fd
             close(_child_out_fd[1]);
             if (_i == 2) {
@@ -363,12 +397,16 @@ void shell::execute_command(const command& _cmd) {
     _ss.restore(SIGTSTP);
     // _ss.restore(SIGSTOP); // tbd
     _ss.restore(SIGINT);
+    _ss.restore(SIGTTIN);
+    _ss.restore(SIGTTOU);
 
-    const bool _status_sigtstp = _ss.empty(SIGTSTP);
-    
+    setpgid(_pid, _pid);
+    job _j(_pid, _pid, _main_ins, _editor.in(), _editor.out());
     if (!_cmd._background) {
-        _fg_proc.insert(_pid);
+        _proc_map.insert({_pid, _j});
         int _status = 0;
+        tcsetpgrp(_editor.in(), _j.pgid());
+        tcsetpgrp(_editor.out(), _j.pgid());
         // waitpid(_pid, &_status, WUNTRACED); // todo
         pid_t _r = waitpid(_pid, &_status, WSTOPPED);
         if (_r < 0) {
@@ -381,8 +419,11 @@ void shell::execute_command(const command& _cmd) {
         }
     }
     else {
+        // tcsetpgrp(_editor.out(), _j.pgid());
         printf("[%ld] %d %s\n", _task_serial_i, _pid, _main_ins.front().c_str());
-        _bg_proc[_task_serial_i++] = _pid;
+        _j.set_serial(_task_serial_i);
+        _proc_map.insert({_pid, _j});
+        _bg_map[_task_serial_i++] = _pid;
     }
     return;
 }
@@ -410,7 +451,12 @@ std::string shell::build_information() {
     std::string _info;
     _info.push_back('[');
     _info.append(_cwd.filename());
-    _info.append(std::string(" fg(") + std::to_string(_fg_proc.size()) + ") bg(" + std::to_string(_bg_proc.size()) + ")");
+    size_t _fg_cnt = 0; size_t _bg_cnt = 0;
+    for (const auto& [_p, _j] : _proc_map) {
+        if (_j.foreground()) ++_fg_cnt;
+        else ++_bg_cnt;
+    }
+    _info.append(std::string(" fg(") + std::to_string(_fg_cnt) + ") bg(" + std::to_string(_bg_cnt) + ")");
     _info.push_back(']');
     return _info;
 }
@@ -452,10 +498,41 @@ void shell::bg(const std::vector<std::string>& _args) {
     if (!internal_instruction_check("bg", _args)) {
         exit(EXIT_FAILURE);
     }
+    const size_t _s = std::stoi(_args[1]);
+    if (!_bg_map.count(_s)) {
+        printf("wrong task id\n");
+        return;
+    }
+    const pid_t _pid = _bg_map[_s];
+    auto& _j = _proc_map.at(_pid);
+    ::kill(-_j.pgid(), SIGCONT);
 }
 void shell::fg(const std::vector<std::string>& _args) {
     if (!internal_instruction_check("fg", _args)) {
         exit(EXIT_FAILURE);
+    }
+    const size_t _s = std::stoi(_args[1]);
+    if (!_bg_map.count(_s)) {
+        printf("wrong task id\n");
+        return;
+    }
+    const pid_t _pid = _bg_map[_s];
+    auto& _j = _proc_map.at(_pid);
+    printf("tcsetpgrp(%d)\n", _j.pgid());
+    // tcsetattr(_editor.in(), TCSADRAIN, &_j._tmode);
+    // tcsetattr(_editor.out(), TCSADRAIN, &_j._tmode);
+    tcsetpgrp(_editor.in(), _j.pgid());
+    tcsetpgrp(_editor.out(), _j.pgid());
+    ::kill(-_j.pgid(), SIGCONT);
+    _bg_map.erase(_s);
+    _j.set_serial();
+    int _status;
+    while (1) {
+    pid_t _r = waitpid(_pid, &_status, WSTOPPED);
+    if (_r == -1 && errno == EINTR) {
+        printf("waitpid interupted.\n"); continue;
+    }
+    waitpid_handler(_pid, _status); break;
     }
 }
 void shell::jobs(const std::vector<std::string>& _args) {
@@ -464,9 +541,11 @@ void shell::jobs(const std::vector<std::string>& _args) {
     }
     printf("job list:\n");
     const std::vector<std::string> _states = {"Name", "State"};
-    for (const auto& _p : _bg_proc) {
-        const auto _vs = proc::get_status(_p.second, _states);
-        printf("[%ld](%d) \t%s \t%s\n", _p.first, _p.second, _vs[0].c_str(), _vs[1].c_str());
+    for (const auto& [_s, _p] : _bg_map) {
+        const auto _vs = proc::get_status(_p, _states);
+        if (!_vs.empty()) {
+            printf("[%ld](%d) \t%s \t%s\n", _s, _p, _vs[0].c_str(), _vs[1].c_str());
+        }
     }
 }
 void shell::kill(const std::vector<std::string>& _args) {
@@ -474,15 +553,23 @@ void shell::kill(const std::vector<std::string>& _args) {
         return;
     }
     const size_t _i = std::stoi(_args[1]);
-    if (!_bg_proc.count(_i)) {
+    if (!_bg_map.count(_i)) {
         printf("wrong task id\n");
         return;
     }
-    pid_t _pid = _bg_proc[_i];
-    ::kill(_pid, SIGINT);
+    pid_t _pid = _bg_map[_i];
+    auto& _j = _proc_map.at(_pid);
+    ::kill(-_j.pgid(), SIGINT);
+    _bg_map.erase(_i);
+    _proc_map.erase(_pid);
     int _status;
-    _pid = waitpid(_pid, &_status, WUNTRACED);
-    waitpid_handler(_pid, _status);
+    while (1) {
+    pid_t _r = waitpid(_pid, &_status, WSTOPPED);
+    if (_r == -1 && errno == EINTR) {
+        printf("waitpid interupted.\n"); continue;
+    }
+    waitpid_handler(_pid, _status); break;
+    }
 }
 void shell::echo(const std::vector<std::string>& _args) {}
 void shell::sleep(const std::vector<std::string>& _args) {
@@ -512,7 +599,7 @@ bool shell::is_builtin_instruction(const std::string& _cmd) const {
 }
 
 size_t shell::search_in_background(pid_t _pid) {
-    for (const auto& _i : this->_bg_proc) {
+    for (const auto& _i : this->_bg_map) {
         if (_i.second == _pid) return _i.first;
     }
     return 0;
@@ -520,27 +607,40 @@ size_t shell::search_in_background(pid_t _pid) {
 
 void shell::waitpid_handler(pid_t _pid, int _status) {
     if (_pid == -1 || _pid == 0) return;
-    if (this->_fg_proc.count(_pid)) { // from fg
-        printf("foreground(%d)\n", _pid);
-        if (WIFEXITED(_status)) {
-            this->_fg_proc.erase(_pid);
+
+    if (_proc_map.count(_pid)) {
+    auto& _j = _proc_map.at(_pid);
+    if (_j.foreground()) {
+        printf("foreground(%d) with (%x)\n", _pid, _status);
+        if (WIFEXITED(_status) || WIFSIGNALED(_status)) {
+            _proc_map.erase(_pid);
         }
         else if (WIFSTOPPED(_status)) {
-            this->_fg_proc.erase(_pid);
-            this->_bg_proc[this->_task_serial_i++] = _pid;
+            setpgid(_pid, _pid);
+            _j.set_serial(_task_serial_i);
+            _bg_map[_task_serial_i++] = _pid;
             const std::vector<std::string> _state = {"Name"};
             const auto _vs = proc::get_status(_pid, _state);
-            printf("(%d) \t%s stopped\n", _pid, _vs[0].c_str());
+            if (!_vs.empty()) {
+                printf("(%d) \t%s stopped\n", _pid, _vs[0].c_str());
+            }
         }
+        tcsetpgrp(_editor.in(), getpid());
+        tcsetpgrp(_editor.out(), getpid());
     }
-    else if (const auto _i = search_in_background(_pid)) {
-        printf("background(%d)\n", _pid);
-        if (WIFEXITED(_status)) {
-            this->_bg_proc.erase(_i);
+    else {
+        printf("background(%d) with (%x)\n", _pid, _status);
+        if (WIFEXITED(_status) || WIFSIGNALED(_status)) {
             const std::vector<std::string> _state = {"Name"};
             const auto _vs = proc::get_status(_pid, _state);
-            printf("[%ld](%d) \t%s done\n", _i, _pid, _vs[0].c_str());
+            if (!_vs.empty()) {
+                printf("[%ld](%d) \t%s done\n", _j.serial(), _pid, _vs[0].c_str());
+            }
+            _bg_map.erase(_j.serial());
+            _proc_map.erase(_pid);
         }
+        tcsetpgrp(_editor.out(), getpid());
+    }
     }
 }
 

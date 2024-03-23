@@ -32,7 +32,8 @@ bool editor::wait() {
     if (_r < 0) {
         if (errno == EINTR) {
             _M_write("intr break read\n");
-            return true;
+            continue;
+            // return true;
         }
         else {
             return false;

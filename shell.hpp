@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "command.hpp"
+#include "job.hpp"
 
 #include "virtual_editor.hpp"
 
@@ -33,6 +34,9 @@ public: // signal
     void sigchld_handler(int);
     void sigtstp_handler(int);
     void sigint_handler(int);
+    void sigpipe_handler(int);
+    void sigttin_handler(int);
+    void sigttou_handler(int);
 
 private:
     void line();
@@ -75,8 +79,10 @@ private:
     std::string _line;
     shell_editor& _editor;
     command_sequence _commands;
-    std::unordered_set<pid_t> _fg_proc;
-    std::unordered_map<size_t, pid_t> _bg_proc;
+    // std::unordered_set<pid_t> _fg_proc;
+    // std::unordered_map<size_t, pid_t> _bg_proc;
+    std::unordered_map<pid_t, job> _proc_map;
+    std::unordered_map<size_t, pid_t> _bg_map;
     size_t _task_serial_i = 1;
 
     std::filesystem::path _cwd;
