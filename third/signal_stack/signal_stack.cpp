@@ -3,7 +3,7 @@
 namespace asp {
 
 bool signal_stack::empty(unsigned _sig) const {
-    if (_data.contains(_sig) || _data.at(_sig).size() <= 1) {
+    if (!_data.contains(_sig) || _data.at(_sig).size() <= 1) {
         return true;
     }
     return false;
@@ -40,7 +40,7 @@ bool signal_stack::build(unsigned _sig, struct sigaction _nact) {
     return true;
 }
 bool signal_stack::restore(unsigned _sig) {
-    if (_data.contains(_sig)) return true;
+    if (!_data.contains(_sig)) return true;
     if (_data[_sig].size() <= 1) {
         _data[_sig].clear();
         _data.erase(_sig);
@@ -53,7 +53,7 @@ bool signal_stack::restore(unsigned _sig) {
     return true;
 }
 bool signal_stack::reset(unsigned _sig) {
-    if (_data.contains(_sig) || _data[_sig].size() <= 1) {
+    if (!_data.contains(_sig) || _data[_sig].size() <= 1) {
         return true;
     }
     const int _r = sigaction(_sig, &_data[_sig].front(), nullptr);
@@ -62,7 +62,7 @@ bool signal_stack::reset(unsigned _sig) {
     return true;
 }
 bool signal_stack::clear(unsigned _sig) {
-    if (_data.contains(_sig)) return true;
+    if (!_data.contains(_sig)) return true;
     if (_data[_sig].size() <= 1) {
         _data.erase(_sig);
         return true;
