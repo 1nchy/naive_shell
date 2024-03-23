@@ -61,6 +61,11 @@ shell::shell(shell_editor& _e) : _editor(_e) {
 
     dup2(_editor.in(), fileno(stdin));
     dup2(_editor.out(), fileno(stdout));
+    dup2(_editor.err(), fileno(stderr));
+
+    tcsetpgrp(_editor.in(), getpid());
+    tcsetpgrp(_editor.out(), getpid());
+    tcsetpgrp(_editor.err(), getpid());
 
     _ss.build(SIGCHLD, shell_sigchld_handler);
     _ss.build(SIGTSTP, shell_sigtstp_handler);
@@ -399,6 +404,7 @@ void shell::execute_command(const command& _cmd) {
         int _status = 0;
         tcsetpgrp(_editor.in(), _j.pgid());
         tcsetpgrp(_editor.out(), _j.pgid());
+        tcsetpgrp(_editor.err(), _j.pgid());
         while (waitpid(_pid, &_status, WSTOPPED) == -1 && errno == EINTR);
         waitpid_handler(_pid, _status);
     }
@@ -406,12 +412,12 @@ void shell::execute_command(const command& _cmd) {
         printf("[%ld](%d) %s\n", _task_serial_i, _pid, _main_ins.front().c_str());
         _j.set_serial(_task_serial_i);
         _proc_map.insert({_pid, _j});
-        _bg_map[_task_serial_i++] = _pid;
+        append_background_job(_pid);
     }
     return;
 }
 void shell::execute_instruction(const std::vector<std::string>& _args) {
-    if (_builtin_instruction.count(_args[0].c_str())) { // for built-in instruction
+    if (_builtin_instruction.contains(_args[0].c_str())) { // for built-in instruction
         execute_builtin_instruction(_args);
         return;
     }
@@ -482,11 +488,11 @@ void shell::bg(const std::vector<std::string>& _args) {
         exit(EXIT_FAILURE);
     }
     const size_t _s = std::stoi(_args[1]);
-    if (!_bg_map.count(_s)) {
+    if (!_bg_tree.contains(_s)) {
         printf("wrong task id\n");
         return;
     }
-    const pid_t _pid = _bg_map[_s];
+    const pid_t _pid = _bg_tree[_s];
     auto& _j = _proc_map.at(_pid);
     ::kill(-_j.pgid(), SIGCONT);
 }
@@ -495,18 +501,19 @@ void shell::fg(const std::vector<std::string>& _args) {
         exit(EXIT_FAILURE);
     }
     const size_t _s = std::stoi(_args[1]);
-    if (!_bg_map.count(_s)) {
+    if (!_bg_tree.contains(_s)) {
         printf("wrong task id\n");
         return;
     }
-    const pid_t _pid = _bg_map[_s];
+    const pid_t _pid = _bg_tree[_s];
     auto& _j = _proc_map.at(_pid);
     // tcsetattr(_editor.in(), TCSADRAIN, &_j._tmode);
     // tcsetattr(_editor.out(), TCSADRAIN, &_j._tmode);
     tcsetpgrp(_editor.in(), _j.pgid());
     tcsetpgrp(_editor.out(), _j.pgid());
+    tcsetpgrp(_editor.err(), _j.pgid());
     ::kill(-_j.pgid(), SIGCONT);
-    _bg_map.erase(_s);
+    remove_background_job(_s);
     _j.set_serial();
     int _status;
     while (waitpid(_pid, &_status, WSTOPPED) == -1 && errno == EINTR);
@@ -518,7 +525,7 @@ void shell::jobs(const std::vector<std::string>& _args) {
     }
     printf("job list:\n");
     const std::vector<std::string> _states = {"Name", "State"};
-    for (const auto& [_s, _p] : _bg_map) {
+    for (const auto& [_s, _p] : _bg_tree) {
         const auto _vs = proc::get_status(_p, _states);
         if (!_vs.empty()) {
             printf("[%ld](%d) \t%s \t%s\n", _s, _p, _vs[0].c_str(), _vs[1].c_str());
@@ -530,11 +537,11 @@ void shell::kill(const std::vector<std::string>& _args) {
         return;
     }
     const size_t _i = std::stoi(_args[1]);
-    if (!_bg_map.count(_i)) {
+    if (!_bg_tree.contains(_i)) {
         printf("wrong task id\n");
         return;
     }
-    pid_t _pid = _bg_map[_i];
+    pid_t _pid = _bg_tree[_i];
     auto& _j = _proc_map.at(_pid);
     ::kill(-_j.pgid(), SIGKILL);
     int _status;
@@ -565,14 +572,14 @@ bool shell::internal_instruction_check(const std::string& _cmd, const std::vecto
     return true;
 }
 bool shell::is_builtin_instruction(const std::string& _cmd) const {
-    return _builtin_instruction.count(_cmd);
+    return _builtin_instruction.contains(_cmd);
 }
 
 /* process controller implement */
 void shell::waitpid_handler(pid_t _pid, int _status) {
     if (_pid == -1 || _pid == 0) return;
 
-    if (_proc_map.count(_pid)) {
+    if (_proc_map.contains(_pid)) {
     auto& _j = _proc_map.at(_pid);
     if (_j.foreground()) {
         printf("foreground(%d) with (%x)\n", _pid, _status);
@@ -582,7 +589,7 @@ void shell::waitpid_handler(pid_t _pid, int _status) {
         else if (WIFSTOPPED(_status)) {
             setpgid(_pid, _pid);
             _j.set_serial(_task_serial_i);
-            _bg_map[_task_serial_i++] = _pid;
+            append_background_job(_pid);
             const std::vector<std::string> _state = {"Name"};
             const auto _vs = proc::get_status(_pid, _state);
             if (!_vs.empty()) {
@@ -591,6 +598,7 @@ void shell::waitpid_handler(pid_t _pid, int _status) {
         }
         tcsetpgrp(_editor.in(), getpid());
         tcsetpgrp(_editor.out(), getpid());
+        tcsetpgrp(_editor.err(), getpid());
     }
     else {
         printf("background(%d) with (%x)\n", _pid, _status);
@@ -600,12 +608,25 @@ void shell::waitpid_handler(pid_t _pid, int _status) {
             if (!_vs.empty()) {
                 printf("[%ld](%d) \t%s done\n", _j.serial(), _pid, _vs[0].c_str());
             }
-            _bg_map.erase(_j.serial());
+            remove_background_job(_j.serial());
             _proc_map.erase(_pid);
         }
         tcsetpgrp(_editor.out(), getpid());
+        tcsetpgrp(_editor.err(), getpid());
     }
     }
+}
+size_t shell::append_background_job(pid_t _pid) {
+    _bg_tree[_task_serial_i] = _pid;
+    return _task_serial_i++;
+}
+pid_t shell::remove_background_job(size_t _i) {
+    const pid_t _pid = (_bg_tree.contains(_i) ? _bg_tree[_i] : -1);
+    _bg_tree.erase(_i);
+    if (_bg_tree.empty()) {
+        _task_serial_i = 1;
+    }
+    return _pid;
 }
 
 };

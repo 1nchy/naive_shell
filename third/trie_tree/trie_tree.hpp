@@ -23,7 +23,7 @@ struct trie_tree_node {
         _children.clear();
     }
     bool contains(char _c) const {
-        return _children.count(_c) != 0;
+        return _children.contains(_c);
     }
     void add(char _c) {
         _children.emplace(_c, new self(_c));

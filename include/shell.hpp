@@ -3,7 +3,7 @@
 
 #include <string>
 #include <filesystem>
-#include <unordered_set>
+#include <map>
 #include <unordered_map>
 
 #include <iostream>
@@ -78,6 +78,8 @@ private: // about built-in instruction
     void sleep(const std::vector<std::string>&);
 private: // process controller
     void waitpid_handler(pid_t _pid, int _status);
+    size_t append_background_job(pid_t _pid);
+    pid_t remove_background_job(size_t _i);
 
 private: // output function
     void log(const char* _fmt, ...); // todo
@@ -88,7 +90,7 @@ private:
     shell_editor& _editor;
     command_sequence _commands;
     std::unordered_map<pid_t, job> _proc_map;
-    std::unordered_map<size_t, pid_t> _bg_map;
+    std::map<size_t, pid_t> _bg_tree;
     size_t _task_serial_i = 1;
 
     std::filesystem::path _cwd;
