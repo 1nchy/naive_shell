@@ -10,7 +10,7 @@
 #include <iostream>
 
 #include "virtual_editor.hpp"
-#include "signal_stack.hpp"
+#include "signal_stack/signal_stack.hpp"
 
 namespace asp {
 class editor;

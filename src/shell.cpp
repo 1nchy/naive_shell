@@ -14,8 +14,8 @@
 #include <chrono>
 #include <thread>
 
-#include "proc_status.hpp"
-#include "signal_stack.hpp"
+#include "proc_status/proc_status.hpp"
+#include "signal_stack/signal_stack.hpp"
 
 #include "editor.hpp"
 

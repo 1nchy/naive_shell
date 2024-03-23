@@ -13,7 +13,8 @@
 
 #include "virtual_editor.hpp"
 
-#include "trie_tree.hpp"
+// #include "trie_tree.hpp"
+#include "trie_tree/trie_tree.hpp"
 
 namespace asp {
 class shell;

@@ -3,13 +3,14 @@
 !.gitignore
 !README.md
 
-!*.hpp
-!editor.cpp
-!virtual_editor.cpp
-!shell.cpp
-!trie_tree.cpp
-!command.cpp
-!job.cpp
-!signal_stack.cpp
+!/src
+!/src/*
+!/include
+!/include/*
+!/third
+!/third/*
+/third/lib/
+!/third/*/*
 
 !main.cpp
+!makefile

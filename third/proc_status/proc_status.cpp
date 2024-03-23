@@ -1,8 +1,4 @@
-#ifndef _ASP_PROC_STATUS_HPP_
-#define _ASP_PROC_STATUS_HPP_
-
-#include <string>
-#include <vector>
+#include "proc_status.hpp"
 
 #include <fstream>
 
@@ -34,5 +30,3 @@ std::vector<std::string> get_status(pid_t _pid, const std::vector<std::string>& 
 }
 }
 }
-
-#endif // _ASP_PROC_STATUS_HPP_
