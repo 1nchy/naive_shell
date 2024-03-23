@@ -25,9 +25,14 @@ void shell_sigtstp_handler(int _sig);
 void shell_sigint_handler(int _sig);
 
 class shell {
-public:
+private:
     shell(shell_editor&);
+    shell(const shell&) = delete;
+    shell& operator=(const shell&) = delete;
     ~shell();
+public:
+    // static shell& singleton(shell_editor&);
+    static shell& singleton();
     bool wait();
     bool compile();
     bool execute();
@@ -42,7 +47,7 @@ public: // signal
 private:
     void line();
     // bool parse(const std::string& _s);
-    void reset();
+    void clear();
 
     void execute_command(const command&);
     void execute_instruction(const std::vector<std::string>&);
@@ -82,8 +87,6 @@ private:
     std::string _line;
     shell_editor& _editor;
     command_sequence _commands;
-    // std::unordered_set<pid_t> _fg_proc;
-    // std::unordered_map<size_t, pid_t> _bg_proc;
     std::unordered_map<pid_t, job> _proc_map;
     std::unordered_map<size_t, pid_t> _bg_map;
     size_t _task_serial_i = 1;

@@ -8,8 +8,8 @@
 namespace asp {
 editor default_editor;
 
-editor::editor(int _in, int _out, const std::string& _prompt)
- : _in(_in), _out(_out), _prompt(_prompt) {
+editor::editor(int _in, int _out, int _err, const std::string& _prompt)
+ : _in(_in), _out(_out), _err(_err), _prompt(_prompt) {
     load_history();
 }
 editor::~editor() {
@@ -31,7 +31,7 @@ bool editor::wait() {
     const auto _r = _M_read(_c);
     if (_r < 0) {
         if (errno == EINTR) {
-            _M_write("intr break read\n");
+            _M_error("intr break read\n");
             continue;
             // return true;
         }

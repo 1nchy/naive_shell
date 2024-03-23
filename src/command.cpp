@@ -50,7 +50,7 @@ void command_sequence::prepare_redirection(const std::string& _redir) {
         _parsed_command.back()._redirect_out_type = 2;
     }
 }
-void command_sequence::reset() {
+void command_sequence::clear() {
     _parsed_command.clear();
     _command_relation.clear();
     _in_ready = false; _out_ready = false;

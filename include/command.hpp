@@ -45,7 +45,7 @@ struct command_sequence {
     void ready_out() { _out_ready = true; }
     bool further_input() const { return _further_input; }
     void need_further_input() { _further_input = true; }
-    void reset();
+    void clear();
 private:
     bool _in_ready = false; bool _out_ready = false;
     bool _new_ins = true; bool _new_cmd = true;

@@ -19,19 +19,16 @@ extern editor default_editor;
 class editor : public shell_editor {
 public:
     // editor(std::istream& _is = std::cin, std::ostream& _os = std::cout, const std::string& _prompt = "> ");
-    editor(int _in = fileno(stdin), int _out = fileno(stdout), const std::string& _prompt = "> ");
+    editor(int _in = STDIN_FILENO, int _out = STDOUT_FILENO, int _err = STDERR_FILENO, const std::string& _prompt = "> ");
     editor(const editor&) = delete;
     editor& operator=(const editor&) = delete;
     ~editor();
 
     bool eof() const { return _end_of_file; }
-    // std::istream& in() override { return _is; }
     int in() const override { return _in; }
-    // std::ostream& out() override { return _os; }
     int out() const override { return _out; }
-    // void show_information() override { _os << "[1nchy]";}
+    int err() const override { return _err; }
     void show_information(const std::string& _s) override { write(_out, _s.data(), _s.size()); }
-    // void show_prompt() override { _os << _prompt; }
     void show_prompt() override { write(_out, _prompt.c_str(), _prompt.size()); }
     const std::string& line() override;
 
@@ -58,6 +55,8 @@ private:
     ssize_t _M_read(char& _c) { return read(_in, &_c, sizeof(char)); }
     ssize_t _M_write(char _c) { return write(_out, &_c, sizeof(char)); }
     ssize_t _M_write(const std::string& _s) { return write(_out, _s.data(), _s.size() * sizeof(char)); }
+    ssize_t _M_error(char _c) { return write(_err, &_c, sizeof(char)); }
+    ssize_t _M_error(const std::string& _s) { return write(_err, _s.data(), _s.size() * sizeof(char)); }
 
 private:
     std::vector<std::string> _history;
@@ -68,7 +67,7 @@ private:
     const std::string _prompt = "> ";
     bool _end_of_file = false;
 
-    int _in; int _out;
+    int _in; int _out; int _err;
 
     signal_stack _local_ss;
 

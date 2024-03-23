@@ -19,34 +19,33 @@
 
 #include "editor.hpp"
 
-asp::signal_stack _ss;
+// asp::signal_stack _ss;
 
 namespace asp {
 
-signal_stack _ss;
-shell shell_singleton(asp::default_editor);
+static editor _default_editor;
+static signal_stack _ss;
 
 void shell_sigchld_handler(int _sig) {
-    shell_singleton.sigchld_handler(_sig);
+    shell::singleton().sigchld_handler(_sig);
 }
 void shell_sigtstp_handler(int _sig) {
-    shell_singleton.sigtstp_handler(_sig);
+    shell::singleton().sigtstp_handler(_sig);
 }
 void shell_sigint_handler(int _sig) {
-    shell_singleton.sigint_handler(_sig);
+    shell::singleton().sigint_handler(_sig);
 }
 void shell_sigpipe_handler(int _sig) {
 
 }
 void shell_sigttin_handler(int _sig) {
-    shell_singleton.sigttin_handler(_sig);
+    shell::singleton().sigttin_handler(_sig);
 }
 void shell_sigttou_handler(int _sig) {
-    shell_singleton.sigttou_handler(_sig);
+    shell::singleton().sigttou_handler(_sig);
 }
 
-shell::shell(shell_editor& _e)
- : _editor(_e) {
+shell::shell(shell_editor& _e) : _editor(_e) {
     _home_dir = std::filesystem::path(getenv("HOME"));
     _cwd = _prev_cwd = std::filesystem::current_path();
 
@@ -75,13 +74,23 @@ shell::shell(shell_editor& _e)
 shell::~shell() {
 
 }
+// shell& shell::singleton(shell_editor& _e) {
+//     static shell _shell_singleton(_e);
+//     return _shell_singleton;
+// }
+shell& shell::singleton() {
+    static shell _shell_singleton(_default_editor);
+    return _shell_singleton;
+}
+
+
 bool shell::wait() {
     std::string _word;
     std::string _relation;
     bool _line_parsed = false;
 
     _editor.show_information(build_information());
-    reset();
+    clear();
     _editor.show_prompt();
     line();
     if (_line.empty()) return false;
@@ -242,8 +251,9 @@ void shell::line() {
 }
 
 
-void shell::reset() {
-    _commands.reset();
+void shell::clear() {
+    _line.clear();
+    _commands.clear();
 }
 
 void shell::execute_command(const command& _cmd) {
