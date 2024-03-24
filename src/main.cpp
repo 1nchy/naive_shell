@@ -1,12 +1,10 @@
-#include "editor.hpp"
-#include "shell.hpp"
+// #include "editor.hpp"
+// #include "shell.hpp"
+
+#include "frontend.hpp"
 
 int main(void) {
-    auto& shell_singleton = asp::shell::singleton();
-    while (true) {
-        if (!shell_singleton.wait()) break;
-        if (!shell_singleton.compile()) continue;
-        shell_singleton.execute();
-    }
+    auto& _frontend = asp::shell_frontend::singleton();
+    _frontend.run();
     return 0;
 }
