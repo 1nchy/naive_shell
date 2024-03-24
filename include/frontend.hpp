@@ -43,8 +43,6 @@ private: // I/O
     ssize_t _M_error(char _c);
     ssize_t _M_error(const std::string& _s);
 private:
-    std::vector<std::string> _history;
-    typename decltype(_history)::const_iterator _history_iterator;
     std::vector<char> _front;
     std::vector<char> _back;
     const std::string _prompt = "> ";

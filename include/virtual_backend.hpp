@@ -27,6 +27,9 @@ public:
     virtual bool execute() = 0;
     virtual std::string build_information() = 0;
     virtual std::vector<std::string> build_tab_list(const std::string&) = 0;
+    virtual const std::string& prev_history() = 0;
+    virtual const std::string& next_history() = 0;
+    virtual void append_history(const std::string&) = 0;
 protected:
     virtual void execute_command(const command&) = 0;
     virtual void execute_instruction(const std::vector<std::string>&) = 0;

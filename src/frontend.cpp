@@ -44,7 +44,7 @@ bool shell_frontend::wait() {
 bool shell_frontend::read_line() {
     clear(); char _c;
     show_prompt();
-    _history_iterator = _history.cend(); _end_of_file = false;
+    _end_of_file = false;
     _M_start_handler();
     while (true) {
     const auto _r = _M_read(_c);
@@ -67,7 +67,7 @@ bool shell_frontend::read_line() {
             continue;
         }
         build_line();
-        _history.push_back(_command_line);
+        _backend->append_history(_command_line);
         _M_end_handler();
         return true;
     }
@@ -85,35 +85,28 @@ bool shell_frontend::read_line() {
             cursor_move_back(_front.size());
             fill_blank(0);
             cursor_move_back(_front.size() + _back.size());
-            if (_history.empty()) {
+            const auto& _prev_cmd = _backend->prev_history();
+            if (_prev_cmd.empty()) {
                 clear();
-            }
-            else if (_history_iterator == _history.cbegin()) {
-                _M_write(*_history_iterator);
-                clear();
-                _front.assign(_history_iterator->cbegin(), _history_iterator->cend());
             }
             else {
-                --_history_iterator;
-                _M_write(*_history_iterator);
+                _M_write(_prev_cmd);
                 clear();
-                _front.assign(_history_iterator->cbegin(), _history_iterator->cend());
+                _front.assign(_prev_cmd.cbegin(), _prev_cmd.cend());
             }
         }
         else if (_subc == 'B') { // down arrow ^[[B
             cursor_move_back(_front.size());
             fill_blank(0);
             cursor_move_back(_front.size() + _back.size());
-            if (_history.empty()
-                || _history_iterator == _history.cend()
-                || _history_iterator == _history.cend() - 1) {
-                _history_iterator = _history.cend(); clear();
+            const auto& _next_cmd = _backend->next_history();
+            if (_next_cmd.empty()) {
+                clear();
             }
             else {
-                ++_history_iterator;
-                _M_write(*_history_iterator);
+                _M_write(_next_cmd);
                 clear();
-                _front.assign(_history_iterator->cbegin(), _history_iterator->cend());
+                _front.assign(_next_cmd.cbegin(), _next_cmd.cend());
             }
         }
         else if (_subc == 'D') { // left arrow ^[[D

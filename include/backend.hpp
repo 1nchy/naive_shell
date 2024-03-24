@@ -29,6 +29,9 @@ public:
     bool execute() override;
     std::string build_information() override;
     std::vector<std::string> build_tab_list(const std::string&) override;
+    const std::string& prev_history() override;
+    const std::string& next_history() override;
+    void append_history(const std::string&) override;
 private:
     void execute_command(const command&) override;
     void execute_instruction(const std::vector<std::string>&) override;
@@ -86,7 +89,11 @@ private: // command parsing
     std::string _word;
     std::string _relation;
     // bool _line_parsed = false;
-private:
+private: // history
+    void load_history();
+    std::vector<std::string> _history;
+    typename decltype(_history)::const_iterator _history_iterator;
+private: // process
     command_sequence _commands;
     std::unordered_map<pid_t, job> _proc_map;
     std::map<size_t, pid_t> _bg_map;

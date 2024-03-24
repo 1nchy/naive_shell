@@ -13,6 +13,7 @@ namespace asp {
 #define BUILT_IN_INSTRUCTION_ARGS_CHECK(_args) \
 if (!builtin_instruction_check(__func__, _args)) return;
 
+static const std::string _empty_string;
 static signal_stack _signal_stack;
 static shell_backend* _instance_pointer = nullptr;
 static void shell_sigchld_handler(int _sig) {
@@ -66,6 +67,8 @@ shell_backend::shell_backend(int _in, int _out, int _err)
     _signal_stack.build(SIGINT, shell_sigint_handler);
     _signal_stack.build(SIGTTIN, SIG_IGN);
     _signal_stack.build(SIGTTOU, SIG_IGN);
+
+    clear();
 }
 shell_backend& shell_backend::singleton(int _in, int _out, int _err) {
     static shell_backend _instance(_in, _out, _err);
@@ -193,6 +196,27 @@ std::string shell_backend::build_information() {
 }
 std::vector<std::string> shell_backend::build_tab_list(const std::string&) {
     return {}; // todo
+}
+const std::string& shell_backend::prev_history() {
+    if (_history.empty()) {
+        return _empty_string;
+    }
+    if (_history_iterator != _history.cbegin()) {
+        --_history_iterator;
+    }
+    return *_history_iterator;
+}
+const std::string& shell_backend::next_history() {
+    if (_history.empty() || _history_iterator == _history.cend() || _history_iterator == _history.cend() - 1) {
+        _history_iterator = _history.cend();
+        return _empty_string;
+    }
+    ++_history_iterator;
+    return *_history_iterator;
+}
+void shell_backend::append_history(const std::string& _s) {
+    _history.push_back(_s);
+    _history_iterator = _history.cend();
 }
 
 
@@ -407,6 +431,7 @@ void shell_backend::clear() {
     _commands.clear();
     _parse_status = parse_status::parsing;
     _word.clear(); _relation.clear();
+    _history_iterator = _history.cend();
 }
 void shell_backend::waitpid_handler(pid_t _pid, int _status) {
     if (_pid == -1 || _pid == 0) return;
@@ -506,9 +531,13 @@ void shell_backend::cd(const std::vector<std::string>& _args) {
 }
 void shell_backend::history(const std::vector<std::string>& _args) {
     BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+    for (const auto& _s : _history) {
+        printf("%s\n", _s.c_str());
+    }
 }
 void shell_backend::quit(const std::vector<std::string>& _args) {
     BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+    this->~shell_backend();
     exit(EXIT_FAILURE);
 }
 void shell_backend::bg(const std::vector<std::string>& _args) {
@@ -589,5 +618,11 @@ bool shell_backend::end_of_line(parse_status _s) {
         _parse_status = parse_status::eof;
         return true;
     }
+}
+
+
+void shell_backend::load_history() {
+    // todo
+    _history_iterator = _history.cend();
 }
 };
