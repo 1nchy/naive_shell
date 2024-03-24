@@ -190,7 +190,7 @@ std::string shell_backend::build_information() {
         if (_j.foreground()) ++_fg_cnt;
         else ++_bg_cnt;
     }
-    _info.append(std::string(" fg(") + std::to_string(_fg_cnt) + ") bg(" + std::to_string(_bg_cnt) + ")");
+    _info.append(std::string(" (") + std::to_string(_fg_cnt) + "," + std::to_string(_bg_cnt) + ")");
     _info.push_back(']');
     return _info;
 }
@@ -574,7 +574,6 @@ void shell_backend::fg(const std::vector<std::string>& _args) {
 }
 void shell_backend::jobs(const std::vector<std::string>& _args) {
     BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
-    printf("job list:\n");
     const std::vector<std::string> _states = {"Name", "State"};
     for (const auto& [_s, _p] : _bg_map) {
         const auto _vs = proc::get_status(_p, _states);

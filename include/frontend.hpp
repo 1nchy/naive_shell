@@ -36,6 +36,13 @@ private: // termios
     void _M_raw();
     void _M_start_handler();
     void _M_end_handler();
+public: // ansi color mode
+    enum ansi_color {
+        default_color = 0,
+        black, red, green, yellow, blue, magenta, cyan, white,
+        color_count,
+    };
+    static const char* color_mode[];
 private: // I/O
     ssize_t _M_read(char& _c);
     ssize_t _M_write(char _c);

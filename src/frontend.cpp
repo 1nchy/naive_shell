@@ -9,6 +9,13 @@ namespace asp {
 
 static signal_stack _signal_stack;
 
+const char* shell_frontend::color_mode[] = {
+    "\x1b[39;49m",
+    "\x1b[30m", "\x1b[31m", "\x1b[32m", "\x1b[33m",
+    "\x1b[34m", "\x1b[35m", "\x1b[36m", "\x1b[37m",
+};
+static_assert(sizeof(shell_frontend::color_mode) / sizeof(shell_frontend::color_mode[0]) == shell_frontend::ansi_color::color_count);
+
 shell_frontend::shell_frontend(int _in, int _out, int _err) {
     load_history();
     _backend = &shell_backend::singleton(_in, _out, _err);
@@ -19,10 +26,10 @@ shell_frontend& shell_frontend::singleton(int _in, int _out, int _err) {
 }
 shell_frontend::~shell_frontend() {}
 void shell_frontend::show_information(const std::string& _s) {
-    _M_write("\x1b[32m"+_s+"\x1b[39;49m");
+    _M_write(color_mode[green] + _s + color_mode[0]);
 }
 void shell_frontend::show_prompt() {
-    _M_write("\x1b[34m"+_prompt+"\x1b[39;49m");
+    _M_write(color_mode[blue] + _prompt + color_mode[0]);
 }
 void shell_frontend::run() {
     while (true) {
