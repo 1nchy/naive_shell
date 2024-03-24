@@ -19,10 +19,10 @@ shell_frontend& shell_frontend::singleton(int _in, int _out, int _err) {
 }
 shell_frontend::~shell_frontend() {}
 void shell_frontend::show_information(const std::string& _s) {
-    _M_write(_s);
+    _M_write("\x1b[32m"+_s+"\x1b[32m"+"\x1b[39;49m");
 }
 void shell_frontend::show_prompt() {
-    _M_write(_prompt);
+    _M_write("\x1b[34m"+_prompt+"\x1b[34m"+"\x1b[39;49m");
 }
 void shell_frontend::run() {
     while (true) {
