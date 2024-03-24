@@ -7,6 +7,7 @@
 
 #include "signal_stack/signal_stack.hpp"
 #include "proc_status/proc_status.hpp"
+#include "output/output.hpp"
 
 namespace asp {
 
@@ -43,6 +44,7 @@ static void shell_sigttou_handler(int _sig) {
 
 shell_backend::shell_backend(int _in, int _out, int _err)
 : backend_interface(_in, _out, _err) {
+    output::set_output_level(output::warn);
     _instance_pointer = this;
 
     _home_dir = std::filesystem::path(getenv("HOME"));
@@ -398,14 +400,14 @@ void shell_backend::execute_builtin_instruction(const std::vector<std::string>& 
 void shell_backend::sigchld_handler(int) {
     int _status = 0; pid_t _pid;
     while ((_pid = waitpid(-1, &_status, WNOHANG)) > 0) {
-        printf("receive sigchld(%d)\n", _pid);
+        output_debug("receive sigchld(%d)\n", _pid);
         waitpid_handler(_pid, _status);
     }
 }
 void shell_backend::sigtstp_handler(int) {
     for (const auto& [_p, _j] : this->_proc_map) {
         if (_j.foreground()) {
-            printf("send SIGSTOP to %d\n", _j.pid());
+            output_debug("send SIGSTOP to %d\n", _j.pid());
             ::kill(-_j.pgid(), SIGSTOP);
         }
     }
@@ -413,17 +415,17 @@ void shell_backend::sigtstp_handler(int) {
 void shell_backend::sigint_handler(int) {
     for (const auto& [_p, _j] : this->_proc_map) {
         if (_j.foreground()) {
-            printf("send SIGSTOP to %d\n", _j.pid());
+            output_debug("send SIGSTOP to %d\n", _j.pid());
             ::kill(-_j.pgid(), SIGSTOP);
         }
     }
 }
 void shell_backend::sigpipe_handler(int) {}
 void shell_backend::sigttin_handler(int) {
-    printf("receive sigttin\n");
+    output_debug("receive sigttin\n");
 }
 void shell_backend::sigttou_handler(int) {
-    printf("receive sigttou\n");
+    output_debug("receive sigttou\n");
 }
 
 
@@ -439,7 +441,7 @@ void shell_backend::waitpid_handler(pid_t _pid, int _status) {
     if (_proc_map.contains(_pid)) {
     auto& _j = _proc_map.at(_pid);
     if (_j.foreground()) {
-        printf("foreground(%d) with (%x)\n", _pid, _status);
+        output_debug("foreground(%d) with (%x)\n", _pid, _status);
         if (WIFEXITED(_status) || WIFSIGNALED(_status)) {
             _proc_map.erase(_pid);
         }
@@ -458,7 +460,7 @@ void shell_backend::waitpid_handler(pid_t _pid, int _status) {
         tcsetpgrp(_err, getpid());
     }
     else {
-        printf("background(%d) with (%x)\n", _pid, _status);
+        output_debug("background(%d) with (%x)\n", _pid, _status);
         if (WIFEXITED(_status) || WIFSIGNALED(_status)) {
             const std::vector<std::string> _state = {"Name"};
             const auto _vs = proc::get_status(_pid, _state);

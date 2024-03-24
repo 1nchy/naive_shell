@@ -26,7 +26,7 @@ DEPS=$(patsubst $(SRC_DIR)/%.$(EXTENSION), $(DEPS_DIR)/%.d, $(SRCS))
 OBJ_DIR=$(DIR)/obj
 OBJS=$(patsubst $(SRC_DIR)/%.$(EXTENSION), $(OBJ_DIR)/%.o, $(SRCS))
 
-THIRD_LIB_NAME=proc_status signal_stack trie_tree
+THIRD_LIB_NAME=proc_status signal_stack trie_tree output
 STATIC_LIB_PREFIX=-l
 STATIC_LIB_SUFFIX=.a
 THIRD_LIB=$(foreach n, $(THIRD_LIB_NAME), $(THIRD_DIR)/$(n))
