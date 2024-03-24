@@ -88,10 +88,13 @@ int shell_backend::parse(const std::string& _line) {
     else if (_parse_status == parse_status::single_quote) {
         while (true) {
             if (_i == _line.size() || _line[_i] == '\n' || _line[_i] == '\r') {
-                _parse_status == parse_status::single_quote;
+                _parse_status = parse_status::single_quote;
                 return 1;
             }
-            if (_line[_i] == '\'') break;
+            if (_line[_i] == '\'') {
+                _parse_status = parse_status::parsing; ++_i;
+                break;
+            }
             _word.push_back(_line[_i]); ++_i;
         }
     }
@@ -120,10 +123,13 @@ int shell_backend::parse(const std::string& _line) {
             ++_i;
             while (true) {
                 if (_i == _line.size() || _line[_i] == '\n' || _line[_i] == '\r') {
-                    _parse_status == parse_status::single_quote;
+                    _parse_status = parse_status::single_quote;
                     return 1;
                 }
-                if (_line[_i] == '\'') break;
+                if (_line[_i] == '\'') {
+                    _parse_status = parse_status::parsing; ++_i;
+                    break;
+                }
                 _word.push_back(_line[_i]); ++_i;
             }
         }
