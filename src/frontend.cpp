@@ -69,24 +69,18 @@ bool shell_frontend::read_line() {
     }
     // input normally
     if (_c == '\r' || _c == '\n') {
-        enter_handler(_c);
+        (this->*_char_handler_map.at(_c))(_c);
         return true;
     }
     else if (_c == '\04' || _c == '\03') { // ctrl+c or ctrl+d
-        end_handler(_c);
+        (this->*_char_handler_map.at(_c))(_c);
         return false;
     }
-    else if (_c == '\033') { // _c == '^['
-        escape_handler(_c);
-    }
-    else if (_c == 127) { // backspace
-        backspace_handler(_c);
-    }
-    else if (_c == '\t') {
-        tab_handler(_c);
+    else if (_char_handler_map.contains(_c)) {
+        (this->*_char_handler_map.at(_c))(_c);
     }
     else {
-        default_handler(_c);
+        (this->*_char_handler_map.at(0))(_c);
     }
     }
     _M_term_end_handler();
