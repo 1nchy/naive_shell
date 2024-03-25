@@ -46,6 +46,7 @@ private: // special character handler void(char)
 private: // tab
     bool has_tab_next();
     bool has_tab_list();
+    void switch_tab_list();
     size_t front_signature() const;
     std::string _tab_next;
     std::vector<std::string> _tab_list;

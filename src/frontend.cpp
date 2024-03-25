@@ -52,7 +52,7 @@ bool shell_frontend::read_line() {
     show_prompt();
     _end_of_file = false;
     _M_term_start_handler();
-    while (true) {
+    while (!_end_of_file) {
     const auto _r = _M_read(_c);
     if (_r == -1) {
         if (errno == EINTR) continue;
@@ -105,7 +105,7 @@ void shell_frontend::escape_handler(char) {
     _M_read(_subc);
     if (_subc == 'A') { // up arrow ^[[A
         cursor_move_back(_front.size());
-        fill_blank(0);
+        fill_blank(_front.size() + _back.size());
         cursor_move_back(_front.size() + _back.size());
         const auto& _prev_cmd = _backend->prev_history();
         if (_prev_cmd.empty()) {
@@ -119,7 +119,7 @@ void shell_frontend::escape_handler(char) {
     }
     else if (_subc == 'B') { // down arrow ^[[B
         cursor_move_back(_front.size());
-        fill_blank(0);
+        fill_blank(_front.size() + _back.size());
         cursor_move_back(_front.size() + _back.size());
         const auto& _next_cmd = _backend->next_history();
         if (_next_cmd.empty()) {
@@ -199,13 +199,13 @@ void shell_frontend::tab_handler(char) {
             _tab_list_signature = front_signature();
             // _tab_list ready
             if (_tab_list.empty()) break;
-            _tab_index = (_tab_index + 1) % _tab_list.size();
+            switch_tab_list();
         }
-        else {
+        else { // unused branch
             _tab_list_signature = front_signature();
             if (_tab_list.empty()) break;
             // switch
-            _tab_index = (_tab_index + 1) % _tab_list.size();
+            switch_tab_list();
         }
     } while (0);
 }
@@ -225,6 +225,47 @@ bool shell_frontend::has_tab_list() {
     if (front_signature() == _tab_list_signature) return true;
     _tab_next.clear(); _tab_list.clear(); return false;
 }
+void shell_frontend::switch_tab_list() {
+    if (_tab_list.empty()) return;
+    char _c; size_t _prev_tab_word_size = 0;
+    while (true) {
+        _tab_index = (_tab_index + 1) % _tab_list.size();
+        // output
+        fill_blank(_prev_tab_word_size + _back.size());
+        cursor_move_back(_prev_tab_word_size + _back.size());
+        const auto& _s = _tab_list.at(_tab_index);
+        _M_write(_s);
+        rewrite_back();
+        cursor_move_back(_back.size() + _s.size());
+        _prev_tab_word_size = _s.size();
+        // read keyboard
+        const auto _r = _M_read(_c);
+        if (_r == -1) {
+            if (errno == EINTR) continue;
+            else {
+                _end_of_file = true; return;
+            }
+        }
+        else if (_r == 0) {
+            _end_of_file = true; return;
+        }
+        if (_c != '\t') {
+            _M_write(_s);
+            _front.insert(_front.end(), _s.cbegin(), _s.cend());
+            rewrite_back();
+            cursor_move_back(_back.size());
+            return;
+        }
+        else { // todo
+            // if (_c == '\033') {
+            //     _M_read(_c);
+            //     _M_read(_c);
+            //     if (_c == '3') _M_read(_c);
+            // }
+        }
+    }
+
+}
 size_t shell_frontend::front_signature() const {
     size_t _seed = _front.size() * _front.size();
     for (const auto& _c : _front) {
@@ -238,7 +279,6 @@ void shell_frontend::cursor_move_back(size_t _n) {
     for (size_t _i = 0; _i < _n; ++_i) _M_write('\b');
 }
 void shell_frontend::fill_blank(size_t _n) {
-    _n = (_n ? _n : _front.size() + _back.size());
     for (size_t _i = 0; _i < _n; ++_i) _M_write(' ');
 }
 void shell_frontend::text_backspace(size_t _n) {
