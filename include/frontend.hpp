@@ -3,6 +3,8 @@
 
 #include "virtual_frontend.hpp"
 
+#include <unordered_map>
+
 namespace asp {
 
 class shell_frontend;
@@ -22,6 +24,27 @@ private:
     bool read_line();
 private: // history
     void load_history();
+private: // special character handler void(char)
+    using character_handler = void(shell_frontend::*)(char);
+    // \\r \\n
+    void enter_handler(char);
+    // ctrl+c \\04; ctrl+d \\03
+    void end_handler(char);
+    // ^[* (up down left right home end del)
+    void escape_handler(char);
+    // backspace 127
+    void backspace_handler(char);
+    // \\t
+    void tab_handler(char);
+    void default_handler(char);
+    const std::unordered_map<char, character_handler> _char_handler_map = {
+        {'\r', &shell_frontend::enter_handler}, {'\n', &shell_frontend::enter_handler},
+        {'\03', &shell_frontend::end_handler}, {'\04', &shell_frontend::end_handler},
+        {'\033', &shell_frontend::escape_handler},
+        {127, &shell_frontend::backspace_handler},
+        {'\t', &shell_frontend::tab_handler},
+        {0, &shell_frontend::default_handler},
+    };
 private: // tab
     bool has_tab_next();
     bool has_tab_list();
@@ -43,8 +66,8 @@ private: // view
 private: // termios
     void _M_cooked();
     void _M_raw();
-    void _M_start_handler();
-    void _M_end_handler();
+    void _M_term_start_handler();
+    void _M_term_end_handler();
 public: // ansi color mode
     enum ansi_color {
         default_color = 0,
