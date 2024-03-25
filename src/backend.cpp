@@ -70,7 +70,7 @@ shell_backend::~shell_backend() {
 
 }
 int shell_backend::parse(const std::string& _line) {
-    if (_line.empty()) return -1;
+    if (_line.empty()) return 0;
     size_t _i = 0;
     while (_parse_status != parse_status::eof) {
         // handle parsing status
@@ -247,6 +247,7 @@ const std::string& shell_backend::next_history() {
     return *_history_iterator;
 }
 void shell_backend::append_history(const std::string& _s) {
+    if (_s.empty()) return;
     _history.push_back(_s);
     _history_iterator = _history.cend();
 }
