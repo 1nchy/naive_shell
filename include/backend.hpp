@@ -83,12 +83,47 @@ private: // command parsing
         backslash,
         single_quote,
         double_quotes,
+        back_quote,
     };
     bool end_of_line(parse_status _s = parse_status::parsing);
+    // |
+    bool pipe_symbol(const std::string&) const;
+    // || ; &&
+    bool join_symbol(const std::string&) const;
+    // > >> <
+    bool redirect_symbol(const std::string&) const;
+    bool background_symbol(const std::string&) const;
     parse_status _parse_status = parse_status::parsing;
+    const trie_tree _parse_symbol_dict = {
+        ">", ">>", "<", /*"<<",*/ ";", "|", "||", "&", "&&",
+    };
     std::string _word;
     std::string _relation;
-    // bool _line_parsed = false;
+private: // tab
+    enum tab_type : short { // bitmap
+        none = 0x0,
+        file = 0x1 << 0,
+        program = 0x1 << 1,
+        env = 0x1 << 2,
+        cwd = 0x1 << 3,
+    };
+    bool env_symbol(const std::string&) const;
+    #define tab_type_check(_type, _t) ((tab_type::_type) & (_t))
+    const trie_tree _tab_symbol_dict = {
+        ">", ">>", "<", /*"<<",*/ ";", "|", "||", "&", "&&", "$",
+    };
+    trie_tree _program_dict;
+    trie_tree _file_dict;
+    trie_tree _env_dict;
+    trie_tree _cwd_dict;
+    std::vector<std::string> build_program_tab_list(const std::string&);
+    std::vector<std::string> build_file_tab_list(const std::string&);
+    std::vector<std::string> build_env_tab_list(const std::string&);
+    std::vector<std::string> build_cwd_tab_list(const std::string&);
+    void fetch_program_dict();
+    void fetch_file_dict();
+    void fetch_env_dict();
+    void fetch_cwd_dict();
 private: // history
     void load_history();
     std::vector<std::string> _history;
@@ -98,14 +133,10 @@ private: // process
     std::unordered_map<pid_t, job> _proc_map;
     std::map<size_t, pid_t> _bg_map;
     size_t _task_serial_i = 1;
-
+private: // path
     std::filesystem::path _cwd;
     std::filesystem::path _prev_cwd;
     std::filesystem::path _home_dir;
-
-    trie_tree _cmd_symbol_dict;
-    trie_tree _cmd_dict;
-    trie_tree _path_dict;
 };
 
 };

@@ -50,16 +50,6 @@ shell_backend::shell_backend(int _in, int _out, int _err)
     _home_dir = std::filesystem::path(getenv("HOME"));
     _cwd = _prev_cwd = std::filesystem::current_path();
 
-    _cmd_symbol_dict.add(">");
-    _cmd_symbol_dict.add(">>");
-    _cmd_symbol_dict.add("<");
-    // _cmd_symbol_dict.add("<<");
-    _cmd_symbol_dict.add(";");
-    _cmd_symbol_dict.add("|");
-    _cmd_symbol_dict.add("||");
-    _cmd_symbol_dict.add("&");
-    _cmd_symbol_dict.add("&&");
-
     dup2(_in, STDIN_FILENO);
     dup2(_out, STDOUT_FILENO);
     dup2(_err, STDERR_FILENO);
@@ -99,6 +89,7 @@ int shell_backend::parse(const std::string& _line) {
         }
     }
     // else if (_parse_status == parse_status::double_quotes) {}
+    // else if (_parse_status == parse_status::back_quotes) {}
     
         // skip blank between words
     while (_i != _line.size() && _line[_i] == ' ') { ++_i; }
@@ -134,6 +125,7 @@ int shell_backend::parse(const std::string& _line) {
             }
         }
         // else if (_c == '\"') {}
+        // else if (_c == '`') {}
         else if (_c == ' ') {
             _commands.build_word(_word); _word.clear();
             break;
@@ -143,7 +135,7 @@ int shell_backend::parse(const std::string& _line) {
             break;
         }
         else { // character that should be read
-    size_t _l = _cmd_symbol_dict.longest_match(_line.cbegin() + _i, _line.cend());
+    size_t _l = _parse_symbol_dict.longest_match(_line.cbegin() + _i, _line.cend());
     if (_l == 0) { // normal character
         _word.push_back(_c);
         continue;
@@ -151,23 +143,23 @@ int shell_backend::parse(const std::string& _line) {
         // special character
     _commands.build_word(_word); _word.clear();
     _relation = _line.substr(_i, _l); _i += _l;
-    if (_relation == "|") {
+    if (pipe_symbol(_relation)) {
         _commands.build_instruction();
         _commands.need_further_input();
         break;
     }
-    else if (_relation == "||" || _relation == ";" || _relation == "&&") {
+    else if (join_symbol(_relation)) {
         _commands.build_instruction();
         _commands.build_command(_relation);
         _commands.need_further_input();
         break;
     }
-    else if (_relation == ">" || _relation  == ">>" || _relation == "<" /*|| _relation == "<<"*/) {
+    else if (redirect_symbol(_relation)) {
         _commands.prepare_redirection(_relation);
         _commands.need_further_input();
         break;
     }
-    else if (_relation == "&") {
+    else if (background_symbol(_relation)) {
         _relation.clear();
         _commands.build_instruction();
         _commands.build_command(_relation, true);
@@ -202,8 +194,84 @@ std::string shell_backend::build_information() {
     _info.push_back(']');
     return _info;
 }
-std::vector<std::string> shell_backend::build_tab_list(const std::string&) {
-    return {}; // todo
+std::vector<std::string> shell_backend::build_tab_list(const std::string& _line) {
+    if (_line.empty()) return {};
+    auto _tab_parse_status = parse_status::parsing;
+    size_t _i = 0; std::string _word_2bc; tab_type _word_type = tab_type::cwd;
+    // tab parse
+    while (_tab_parse_status != parse_status::eof) {
+        // skip blank between words
+        while (_i != _line.size() && _line[_i] == ' ') { ++_i; }
+        if (_i == _line.size()) break;
+        // process one word in a cycle at least
+        for (; _i != _line.size(); ++_i) {
+            const auto& _c = _line[_i];
+            if (_c == '\\') {
+                ++_i;
+                if (_i == _line.size()) {
+                    _tab_parse_status = parse_status::eof; break;
+                }
+                _word_2bc.push_back(_line[_i]);
+            }
+            else if (_c == '\'') {
+                ++_i;
+                while (true) {
+                    if (_i == _line.size()) {
+                        _tab_parse_status = parse_status::eof; break;
+                    }
+                    if (_line[_i] == '\'') {
+                        ++_i; break;
+                    }
+                    _word_2bc.push_back(_line[_i]); ++_i;
+                }
+            }
+            // else if (_c == '\"') {}
+            // else if (_c == '`') {}
+            else if (_c == ' ') {
+                _word_2bc.clear(); _word_type = tab_type::cwd; break;
+            }
+            else {
+                size_t _l = _tab_symbol_dict.longest_match(_line.cbegin() + _i, _line.cend());
+                if (_l == 0) { // normal character
+                    _word.push_back(_c);
+                    continue;
+                }
+                _word_2bc.clear(); _word_type = tab_type::cwd;
+                const std::string _symbol = _line.substr(_i, _l); _i += _l;
+                if (pipe_symbol(_symbol)) {
+                    _word_type = tab_type::program;
+                }
+                else if (join_symbol(_symbol)) {
+                    _word_type = tab_type::program;
+                }
+                else if (redirect_symbol(_symbol)) {
+                    _word_type = tab_type::file;
+                }
+                else if (env_symbol(_symbol)) {
+                    _word_type = tab_type::env;
+                }
+            }
+        }
+    }
+    // tab classification
+    std::vector<std::string> _tab_list;
+    if (tab_type_check(file, _word_type)) {
+        const auto& _file_tab_list = build_file_tab_list(_word_2bc);
+        _tab_list.insert(_tab_list.end(), _file_tab_list.cbegin(), _file_tab_list.cend());
+    }
+    if (tab_type_check(program, _word_type)) {
+        const auto& _program_tab_list = build_program_tab_list(_word_2bc);
+        _tab_list.insert(_tab_list.end(), _program_tab_list.cbegin(), _program_tab_list.cend());
+    }
+    if (tab_type_check(env, _word_type)) {
+        const auto& _env_tab_list = build_env_tab_list(_word_2bc);
+        _tab_list.insert(_tab_list.end(), _env_tab_list.cbegin(), _env_tab_list.cend());
+    }
+    if (tab_type_check(cwd, _word_type)) {
+        const auto& _cwd_tab_list = build_cwd_tab_list(_word_2bc);
+        _tab_list.insert(_tab_list.end(), _cwd_tab_list.cbegin(), _cwd_tab_list.cend());
+    }
+    return _tab_list;
 }
 const std::string& shell_backend::prev_history() {
     if (_history.empty()) {
@@ -611,6 +679,7 @@ void shell_backend::sleep(const std::vector<std::string>& _args) {
     std::this_thread::sleep_for(std::chrono::seconds(_x));
 }
 
+
 bool shell_backend::end_of_line(parse_status _s) {
     _commands.build_word(_word); _word.clear();
     if (_commands.further_input()) {
@@ -626,6 +695,39 @@ bool shell_backend::end_of_line(parse_status _s) {
         return true;
     }
 }
+bool shell_backend::pipe_symbol(const std::string& _r) const {
+    return _r == "|";
+}
+bool shell_backend::join_symbol(const std::string& _r) const {
+    return _r == "||" || _r == ";" || _r == "&&";
+}
+bool shell_backend::redirect_symbol(const std::string& _r) const {
+    return _r == ">" || _r == ">>" || _r == "<" /*|| _r == "<<"*/;
+}
+bool shell_backend::background_symbol(const std::string& _r) const {
+    return _r == "&";
+}
+
+
+bool shell_backend::env_symbol(const std::string& _r) const {
+    return _r == "$";
+}
+std::vector<std::string> shell_backend::build_program_tab_list(const std::string&) {
+    return {};
+}
+std::vector<std::string> shell_backend::build_file_tab_list(const std::string&) {
+    return {};
+}
+std::vector<std::string> shell_backend::build_env_tab_list(const std::string&) {
+    return {};
+}
+std::vector<std::string> shell_backend::build_cwd_tab_list(const std::string&) {
+    return {};
+}
+void shell_backend::fetch_program_dict() {}
+void shell_backend::fetch_file_dict() {}
+void shell_backend::fetch_env_dict() {}
+void shell_backend::fetch_cwd_dict() {}
 
 
 void shell_backend::load_history() {
