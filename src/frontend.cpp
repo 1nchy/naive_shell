@@ -196,7 +196,13 @@ bool shell_frontend::word_2b_completed() {
     for (const auto& _c : _front) {
         _seed ^= _c + 0x9e3779b9 + (_seed << 6) + (_seed >> 2);
     }
-    return _seed != _tab_signature;
+    if (_seed != _tab_signature) {
+        _tab_signature = _seed;
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
 
