@@ -194,76 +194,36 @@ std::string shell_backend::build_information() {
     _info.push_back(']');
     return _info;
 }
-std::vector<std::string> shell_backend::build_tab_list(const std::string& _line) {
-    if (_line.empty()) return {};
-    auto _tab_parse_status = parse_status::parsing;
-    size_t _i = 0; std::string _word_2bc; tab_type _word_type = tab_type::file;
-    // tab parse
-    while (_tab_parse_status != parse_status::eof) {
-        // skip blank between words
-        while (_i != _line.size() && _line[_i] == ' ') { ++_i; }
-        if (_i == _line.size()) break;
-        // process one word in a cycle at least
-        for (; _i != _line.size(); ++_i) {
-            const auto& _c = _line[_i];
-            if (_c == '\\') {
-                ++_i;
-                if (_i == _line.size()) {
-                    _tab_parse_status = parse_status::eof; break;
-                }
-                _word_2bc.push_back(_line[_i]);
-            }
-            else if (_c == '\'') {
-                ++_i;
-                while (true) {
-                    if (_i == _line.size()) {
-                        _tab_parse_status = parse_status::eof; break;
-                    }
-                    if (_line[_i] == '\'') {
-                        ++_i; break;
-                    }
-                    _word_2bc.push_back(_line[_i]); ++_i;
-                }
-            }
-            // else if (_c == '\"') {}
-            // else if (_c == '`') {}
-            else if (_c == ' ') {
-                _word_2bc.clear(); _word_type = tab_type::file; break;
-            }
-            else {
-                size_t _l = _tab_symbol_dict.longest_match(_line.cbegin() + _i, _line.cend());
-                if (_l == 0) { // normal character
-                    _word_2bc.push_back(_c);
-                    continue;
-                }
-                _word_2bc.clear(); _word_type = tab_type::file;
-                const std::string _symbol = _line.substr(_i, _l); _i += _l;
-                if (pipe_symbol(_symbol)) {
-                    _word_type = tab_type::program;
-                }
-                else if (join_symbol(_symbol)) {
-                    _word_type = tab_type::program;
-                }
-                else if (redirect_symbol(_symbol)) {
-                    _word_type = tab_type::file;
-                }
-                else if (env_symbol(_symbol)) {
-                    _word_type = tab_type::env;
-                }
-            }
-        }
+std::string shell_backend::build_tab_next(const std::string& _line) {
+    parse_tab(_line);
+    trie_tree _tab_next_dict;
+    if (tab_type_check(file, _word2bc_type)) {
+        const auto& _file_tab_next = build_file_tab_next(_word_2bc);
+        _tab_next_dict.add(_file_tab_next);
     }
+    if (tab_type_check(program, _word2bc_type)) {
+        const auto& _program_tab_next = build_program_tab_next(_word_2bc);
+        _tab_next_dict.add(_program_tab_next);
+    }
+    if (tab_type_check(env, _word2bc_type)) {
+        const auto& _env_tab_next = build_env_tab_next(_word_2bc);
+        _tab_next_dict.add(_env_tab_next);
+    }
+    return _tab_next_dict.next("");
+}
+std::vector<std::string> shell_backend::build_tab_list(const std::string& _line) {
+    parse_tab(_line);
     // tab classification
     std::vector<std::string> _tab_list;
-    if (tab_type_check(file, _word_type)) {
+    if (tab_type_check(file, _word2bc_type)) {
         const auto& _file_tab_list = build_file_tab_list(_word_2bc);
         _tab_list.insert(_tab_list.end(), _file_tab_list.cbegin(), _file_tab_list.cend());
     }
-    if (tab_type_check(program, _word_type)) {
+    if (tab_type_check(program, _word2bc_type)) {
         const auto& _program_tab_list = build_program_tab_list(_word_2bc);
         _tab_list.insert(_tab_list.end(), _program_tab_list.cbegin(), _program_tab_list.cend());
     }
-    if (tab_type_check(env, _word_type)) {
+    if (tab_type_check(env, _word2bc_type)) {
         const auto& _env_tab_list = build_env_tab_list(_word_2bc);
         _tab_list.insert(_tab_list.end(), _env_tab_list.cbegin(), _env_tab_list.cend());
     }
@@ -707,6 +667,92 @@ bool shell_backend::background_symbol(const std::string& _r) const {
 
 bool shell_backend::env_symbol(const std::string& _r) const {
     return _r == "$";
+}
+void shell_backend::parse_tab(const std::string& _line) {
+    _word_2bc.clear(); _word2bc_type = tab_type::file;
+    if (_line.empty()) {
+        _word2bc_type = tab_type::none; return;
+    }
+    auto _tab_parse_status = parse_status::parsing; size_t _i = 0; 
+    // tab parse
+    while (_tab_parse_status != parse_status::eof) {
+        // skip blank between words
+        while (_i != _line.size() && _line[_i] == ' ') { ++_i; }
+        if (_i == _line.size()) break;
+        // process one word in a cycle at least
+        for (; _i != _line.size(); ++_i) {
+            const auto& _c = _line[_i];
+            if (_c == '\\') {
+                ++_i;
+                if (_i == _line.size()) {
+                    _tab_parse_status = parse_status::eof; break;
+                }
+                _word_2bc.push_back(_line[_i]);
+            }
+            else if (_c == '\'') {
+                ++_i;
+                while (true) {
+                    if (_i == _line.size()) {
+                        _tab_parse_status = parse_status::eof; break;
+                    }
+                    if (_line[_i] == '\'') {
+                        ++_i; break;
+                    }
+                    _word_2bc.push_back(_line[_i]); ++_i;
+                }
+            }
+            // else if (_c == '\"') {}
+            // else if (_c == '`') {}
+            else if (_c == ' ') {
+                _word_2bc.clear(); _word2bc_type = tab_type::file; break;
+            }
+            else {
+                size_t _l = _tab_symbol_dict.longest_match(_line.cbegin() + _i, _line.cend());
+                if (_l == 0) { // normal character
+                    _word_2bc.push_back(_c);
+                    continue;
+                }
+                _word_2bc.clear(); _word2bc_type = tab_type::file;
+                const std::string _symbol = _line.substr(_i, _l); _i += _l;
+                if (pipe_symbol(_symbol)) {
+                    _word2bc_type = tab_type::program;
+                }
+                else if (join_symbol(_symbol)) {
+                    _word2bc_type = tab_type::program;
+                }
+                else if (redirect_symbol(_symbol)) {
+                    _word2bc_type = tab_type::file;
+                }
+                else if (env_symbol(_symbol)) {
+                    _word2bc_type = tab_type::env;
+                }
+            }
+        }
+    }
+}
+std::string shell_backend::build_program_tab_next(const std::string&) {
+    return "";
+}
+std::string shell_backend::build_file_tab_next(const std::string& _incompleted_path) {
+    if (_incompleted_path.empty()) {
+        fetch_cwd_dict();
+        return _cwd_dict.next("");
+    }
+    const bool _end_with_separator = _incompleted_path.back() == '/';
+    std::filesystem::path _path(_incompleted_path);
+    const std::string _final_part = (_end_with_separator ? "" : _path.filename().string());
+    if (!_end_with_separator) {
+        _path = _path.parent_path();
+    }
+    if (_path.empty()) _path = _cwd;
+    if (!std::filesystem::exists(_path)) {
+        return {};
+    }
+    fetch_file_dict(_path);
+    return _file_dict.next(_final_part);
+}
+std::string shell_backend::build_env_tab_next(const std::string&) {
+    return "";
 }
 std::vector<std::string> shell_backend::build_program_tab_list(const std::string&) {
     return {};

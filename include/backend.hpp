@@ -28,6 +28,7 @@ public:
     bool compile() override;
     bool execute() override;
     std::string build_information() override;
+    std::string build_tab_next(const std::string&) override;
     std::vector<std::string> build_tab_list(const std::string&) override;
     const std::string& prev_history() override;
     const std::string& next_history() override;
@@ -112,10 +113,16 @@ private: // tab
     const trie_tree _tab_symbol_dict = {
         ">", ">>", "<", /*"<<",*/ ";", "|", "||", "&", "&&", "$",
     };
+    std::string _word_2bc;
+    tab_type _word2bc_type = tab_type::file;
     trie_tree _program_dict;
     trie_tree _file_dict;
     trie_tree _env_dict;
     trie_tree _cwd_dict;
+    void parse_tab(const std::string& _line);
+    std::string build_program_tab_next(const std::string&);
+    std::string build_file_tab_next(const std::string&);
+    std::string build_env_tab_next(const std::string&);
     std::vector<std::string> build_program_tab_list(const std::string&);
     std::vector<std::string> build_file_tab_list(const std::string&);
     std::vector<std::string> build_env_tab_list(const std::string&);
