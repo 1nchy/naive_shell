@@ -163,15 +163,36 @@ bool shell_frontend::read_line() {
         }
     }
     else if (_c == '\t') {
-        if (word_2b_completed()) {
-            const std::string _line_2bc(_front.cbegin(), _front.cend());
+        const std::string _line_2bc(_front.cbegin(), _front.cend());
+        do {
+        if (!has_tab_next()) {
+            const std::string _tab_next = _backend->build_tab_next(_line_2bc);
+            if (!_tab_next.empty()) {
+                // insert %_tab_next into _front
+                _M_write(_tab_next);
+                _front.insert(_front.end(), _tab_next.cbegin(), _tab_next.cend());
+                rewrite_back();
+                cursor_move_back(_back.size());
+                _tab_next_signature = front_signature();
+                break;
+            }
+            _tab_next_signature = front_signature();
+        }
+        if (!has_tab_list()) {
             _tab_list = _backend->build_tab_list(_line_2bc);
             _tab_index = _tab_list.size() - 1;
-        }
-        // _tab_list ready
-        if (!_tab_list.empty()) {
+            _tab_list_signature = front_signature();
+            // _tab_list ready
+            if (_tab_list.empty()) break;
             _tab_index = (_tab_index + 1) % _tab_list.size();
         }
+        else {
+            _tab_list_signature = front_signature();
+            if (_tab_list.empty()) break;
+            // switch
+            _tab_index = (_tab_index + 1) % _tab_list.size();
+        }
+        } while (0);
     }
     else {
         _front.push_back(_c);
@@ -188,21 +209,20 @@ bool shell_frontend::read_line() {
 void shell_frontend::load_history() {}
 
 
-/**
- * @return true for update, false for not changed
-*/
-bool shell_frontend::word_2b_completed() {
+bool shell_frontend::has_tab_next() {
+    if (front_signature() == _tab_next_signature) return true;
+    _tab_next.clear(); _tab_list.clear(); return false;
+}
+bool shell_frontend::has_tab_list() {
+    if (front_signature() == _tab_list_signature) return true;
+    _tab_next.clear(); _tab_list.clear(); return false;
+}
+size_t shell_frontend::front_signature() const {
     size_t _seed = _front.size() * _front.size();
     for (const auto& _c : _front) {
         _seed ^= _c + 0x9e3779b9 + (_seed << 6) + (_seed >> 2);
     }
-    if (_seed != _tab_signature) {
-        _tab_signature = _seed;
-        return true;
-    }
-    else {
-        return false;
-    }
+    return _seed;
 }
 
 

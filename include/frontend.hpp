@@ -23,10 +23,14 @@ private:
 private: // history
     void load_history();
 private: // tab
-    bool word_2b_completed();
+    bool has_tab_next();
+    bool has_tab_list();
+    size_t front_signature() const;
+    std::string _tab_next;
     std::vector<std::string> _tab_list;
     size_t _tab_index = 0;
-    size_t _tab_signature = -1;
+    size_t _tab_next_signature = 0;
+    size_t _tab_list_signature = -1;
 private: // view
     void cursor_move_back(size_t); // move cursor back
     void fill_blank(size_t);
