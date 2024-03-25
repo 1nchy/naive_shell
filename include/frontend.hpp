@@ -110,6 +110,7 @@ public: // ansi color mode
     static const char* color_mode[];
 private: // I/O
     ssize_t _M_read(char& _c);
+    ssize_t _M_nonblock_read(char& _c);
     ssize_t _M_write(char _c);
     ssize_t _M_write(const std::string& _s);
     ssize_t _M_error(char _c);

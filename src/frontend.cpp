@@ -1,6 +1,7 @@
 #include "frontend.hpp"
 #include "backend.hpp"
 
+#include <fcntl.h>
 #include <termios.h>
 
 #include "signal_stack/signal_stack.hpp"
@@ -105,7 +106,12 @@ short shell_frontend::_M_read_character() {
             _result = (short)expand_char::ec_ctrld;
         }
         else if (_c == '\033') {
-            _M_read(_c); _M_read(_c); // unblocked read // todo
+            if (_M_nonblock_read(_c) == -1) {
+                _result = (short)expand_char::ec_esc; break;
+            }
+            if (_M_nonblock_read(_c) == -1) {
+                _result = (short)expand_char::ec_eof; break;
+            }
             if (_c == 'A') {
                 _result = (short)expand_char::ec_up;
             }
@@ -125,19 +131,27 @@ short shell_frontend::_M_read_character() {
                 _result = (short)expand_char::ec_end;
             }
             else if (_c == '2') {
-                _M_read(_c);
+                if (_M_nonblock_read(_c) == -1) {
+                    _result = (short)expand_char::ec_eof; break;
+                }
                 _result = (short)expand_char::ec_ins;
             }
             else if (_c == '3') {
-                _M_read(_c);
+                if (_M_nonblock_read(_c) == -1) {
+                    _result = (short)expand_char::ec_eof; break;
+                }
                 _result = (short)expand_char::ec_del;
             }
             else if (_c == '5') {
-                _M_read(_c);
+                if (_M_nonblock_read(_c) == -1) {
+                    _result = (short)expand_char::ec_eof; break;
+                }
                 _result = (short)expand_char::ec_pgup;
             }
             else if (_c == '6') {
-                _M_read(_c);
+                if (_M_nonblock_read(_c) == -1) {
+                    _result = (short)expand_char::ec_eof; break;
+                }
                 _result = (short)expand_char::ec_pgdn;
             }
         }
@@ -273,11 +287,13 @@ void shell_frontend::tab_handler(short) {
     } while (0);
 }
 void shell_frontend::default_handler(short _c) {
-    char _ch = _c;
-    _front.push_back(_ch);
-    _M_write(_ch);
-    rewrite_back();
-    cursor_move_back(_back.size());
+    if (isprint(_c)) {
+        char _ch = _c;
+        _front.push_back(_ch);
+        _M_write(_ch);
+        rewrite_back();
+        cursor_move_back(_back.size());
+    }
 }
 
 
@@ -377,6 +393,15 @@ void shell_frontend::_M_term_end_handler() {
 
 ssize_t shell_frontend::_M_read(char& _c) {
     return read(_in, &_c, sizeof(char));
+}
+ssize_t shell_frontend::_M_nonblock_read(char& _c) {
+    int _flags = fcntl(_in, F_GETFL);
+    _flags |= O_NONBLOCK;
+    fcntl(_in, F_SETFL, _flags);
+    const auto _r = read(_in, &_c, sizeof(char));
+    _flags &= ~O_NONBLOCK;
+    fcntl(_in, F_SETFL, _flags);
+    return _r;
 }
 ssize_t shell_frontend::_M_write(char _c) {
     return write(_out, &_c, sizeof(char));
