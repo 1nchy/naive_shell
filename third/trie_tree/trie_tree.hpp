@@ -42,6 +42,9 @@ class trie_tree {
     size_t _max_depth = 0;
 public:
     trie_tree() : _root(0) {}
+    trie_tree(std::initializer_list<const char* const>);
+    trie_tree(const trie_tree&) = delete;
+    trie_tree& operator=(const trie_tree&) = delete;
     ~trie_tree() = default;
     void add(const std::string& _s);
     bool del(const std::string& _s);

@@ -47,6 +47,15 @@ auto trie_tree::trace(const std::string& _s)
     }
     return _path;
 }
+
+
+trie_tree::trie_tree(std::initializer_list<const char* const> _il)
+: _root(0) {
+    for (const auto& _s : _il) {
+        add(std::string(_s));
+    }
+}
+
 auto trie_tree::add(const std::string& _s)
 -> void {
     trie_tree_node* _p = &_root;
