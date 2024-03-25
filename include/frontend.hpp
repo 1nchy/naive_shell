@@ -23,7 +23,7 @@ private:
     bool wait() override;
     bool read_line();
 private: // special character handler void(char)
-    enum struct expand_char : short {
+    enum struct extended_char : short {
         ec_default = 0,
         ec_lf = '\n', ec_cr = '\r',
         // ec_space = ' ', ec_exclamation = '!', ec_double_quotes = '\"',
@@ -44,6 +44,7 @@ private: // special character handler void(char)
         ec_esc, ec_home, ec_end, ec_del, ec_back, ec_tab,
         ec_pgup, ec_pgdn, ec_ins, ec_ctrld, ec_eof,
     };
+    #define EXT_CHAR(c) ((short)extended_char::c)
     short _M_read_character();
     using character_handler = void(shell_frontend::*)(short);
     // \\r \\n
@@ -62,20 +63,20 @@ private: // special character handler void(char)
     void tab_handler(short);
     void default_handler(short);
     const std::unordered_map<short, character_handler> _char_handler_map = {
-        {(short)expand_char::ec_lf, &shell_frontend::enter_handler},
-        {(short)expand_char::ec_cr, &shell_frontend::enter_handler},
-        {(short)expand_char::ec_ctrld, &shell_frontend::ctrld_handler},
-        {(short)expand_char::ec_esc, &shell_frontend::esc_handler},
-        {(short)expand_char::ec_up, &shell_frontend::up_arrow_handler},
-        {(short)expand_char::ec_down, &shell_frontend::down_arrow_handler},
-        {(short)expand_char::ec_left, &shell_frontend::left_arrow_handler},
-        {(short)expand_char::ec_right, &shell_frontend::right_arrow_handler},
-        {(short)expand_char::ec_home, &shell_frontend::home_handler},
-        {(short)expand_char::ec_end, &shell_frontend::end_handler},
-        {(short)expand_char::ec_del, &shell_frontend::del_handler},
-        {(short)expand_char::ec_back, &shell_frontend::back_handler},
-        {(short)expand_char::ec_tab, &shell_frontend::tab_handler},
-        {(short)expand_char::ec_default, &shell_frontend::default_handler},
+        {(short)extended_char::ec_lf, &shell_frontend::enter_handler},
+        {(short)extended_char::ec_cr, &shell_frontend::enter_handler},
+        {(short)extended_char::ec_ctrld, &shell_frontend::ctrld_handler},
+        {(short)extended_char::ec_esc, &shell_frontend::esc_handler},
+        {(short)extended_char::ec_up, &shell_frontend::up_arrow_handler},
+        {(short)extended_char::ec_down, &shell_frontend::down_arrow_handler},
+        {(short)extended_char::ec_left, &shell_frontend::left_arrow_handler},
+        {(short)extended_char::ec_right, &shell_frontend::right_arrow_handler},
+        {(short)extended_char::ec_home, &shell_frontend::home_handler},
+        {(short)extended_char::ec_end, &shell_frontend::end_handler},
+        {(short)extended_char::ec_del, &shell_frontend::del_handler},
+        {(short)extended_char::ec_back, &shell_frontend::back_handler},
+        {(short)extended_char::ec_tab, &shell_frontend::tab_handler},
+        {(short)extended_char::ec_default, &shell_frontend::default_handler},
     };
 private: // tab
     bool has_tab_next();

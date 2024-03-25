@@ -55,11 +55,11 @@ bool shell_frontend::read_line() {
     while (!_end_of_file) {
         const auto _c = _M_read_character();
         // input normally
-        if (_c == (short)expand_char::ec_eof || _c == (short)expand_char::ec_ctrld) {
+        if (_c == EXT_CHAR(ec_eof) || _c == EXT_CHAR(ec_ctrld)) {
             _M_write('\n');
             return false;
         }
-        if (_c == (short)expand_char::ec_cr || _c == (short)expand_char::ec_lf) {
+        if (_c == EXT_CHAR(ec_cr) || _c == EXT_CHAR(ec_lf)) {
             (this->*_char_handler_map.at(_c))(_c);
             _M_write('\n');
             return true;
@@ -68,7 +68,7 @@ bool shell_frontend::read_line() {
             (this->*_char_handler_map.at(_c))(_c);
         }
         else {
-            (this->*_char_handler_map.at((short)expand_char::ec_default))(_c);
+            (this->*_char_handler_map.at(EXT_CHAR(ec_default)))(_c);
         }
     }
     _M_write('\n');
@@ -89,77 +89,77 @@ short shell_frontend::_M_read_character() {
             if (errno == EINTR) continue;
             else {
                 _M_term_end_handler();
-                return (short)expand_char::ec_eof;
+                return EXT_CHAR(ec_eof);
             }
         }
         else if (_r == 0) {
             _M_term_end_handler();
-            return (short)expand_char::ec_eof;
+            return EXT_CHAR(ec_eof);
         }
         if (_c == '\r') {
-            _result = (short)expand_char::ec_cr;
+            _result = EXT_CHAR(ec_cr);
         }
         else if (_c == '\n') {
-            _result = (short)expand_char::ec_lf;
+            _result = EXT_CHAR(ec_lf);
         }
         else if (_c == '\04' || _c == '\03') {
-            _result = (short)expand_char::ec_ctrld;
+            _result = EXT_CHAR(ec_ctrld);
         }
         else if (_c == '\033') {
             if (_M_nonblock_read(_c) == -1) {
-                _result = (short)expand_char::ec_esc; break;
+                _result = EXT_CHAR(ec_esc); break;
             }
             if (_M_nonblock_read(_c) == -1) {
-                _result = (short)expand_char::ec_eof; break;
+                _result = EXT_CHAR(ec_eof); break;
             }
             if (_c == 'A') {
-                _result = (short)expand_char::ec_up;
+                _result = EXT_CHAR(ec_up);
             }
             else if (_c == 'B') {
-                _result = (short)expand_char::ec_down;
+                _result = EXT_CHAR(ec_down);
             }
             else if (_c == 'C') {
-                _result = (short)expand_char::ec_right;
+                _result = EXT_CHAR(ec_right);
             }
             else if (_c == 'D') {
-                _result = (short)expand_char::ec_left;
+                _result = EXT_CHAR(ec_left);
             }
             else if (_c == 'H') {
-                _result = (short)expand_char::ec_home;
+                _result = EXT_CHAR(ec_home);
             }
             else if (_c == 'F') {
-                _result = (short)expand_char::ec_end;
+                _result = EXT_CHAR(ec_end);
             }
             else if (_c == '2') {
                 if (_M_nonblock_read(_c) == -1) {
-                    _result = (short)expand_char::ec_eof; break;
+                    _result = EXT_CHAR(ec_eof); break;
                 }
-                _result = (short)expand_char::ec_ins;
+                _result = EXT_CHAR(ec_ins);
             }
             else if (_c == '3') {
                 if (_M_nonblock_read(_c) == -1) {
-                    _result = (short)expand_char::ec_eof; break;
+                    _result = EXT_CHAR(ec_eof); break;
                 }
-                _result = (short)expand_char::ec_del;
+                _result = EXT_CHAR(ec_del);
             }
             else if (_c == '5') {
                 if (_M_nonblock_read(_c) == -1) {
-                    _result = (short)expand_char::ec_eof; break;
+                    _result = EXT_CHAR(ec_eof); break;
                 }
-                _result = (short)expand_char::ec_pgup;
+                _result = EXT_CHAR(ec_pgup);
             }
             else if (_c == '6') {
                 if (_M_nonblock_read(_c) == -1) {
-                    _result = (short)expand_char::ec_eof; break;
+                    _result = EXT_CHAR(ec_eof); break;
                 }
-                _result = (short)expand_char::ec_pgdn;
+                _result = EXT_CHAR(ec_pgdn);
             }
         }
         else if (_c == 127) {
-            _result = (short)expand_char::ec_back;
+            _result = EXT_CHAR(ec_back);
         }
         else if (_c == '\t') {
-            _result = (short)expand_char::ec_tab;
+            _result = EXT_CHAR(ec_tab);
         }
         else {
             _result = _c;
@@ -320,12 +320,19 @@ void shell_frontend::switch_tab_list() {
         _prev_tab_word_size = _s.size();
         // read keyboard
         const auto _r = _M_read_character();
-        if (_r != (short)expand_char::ec_tab) {
+        if (_r == EXT_CHAR(ec_del) || _r == EXT_CHAR(ec_back)) { // not adopted
+            fill_blank(_prev_tab_word_size + _back.size());
+            cursor_move_back(_prev_tab_word_size + _back.size());
+            rewrite_back();
+            cursor_move_back(_back.size());
+            break;
+        }
+        else if (_r != EXT_CHAR(ec_tab)) { // adopted
             _M_write(_s);
             _front.insert(_front.end(), _s.cbegin(), _s.cend());
             rewrite_back();
             cursor_move_back(_back.size());
-            return;
+            break;
         }
     }
 }
