@@ -169,7 +169,9 @@ bool shell_frontend::read_line() {
             _tab_index = _tab_list.size() - 1;
         }
         // _tab_list ready
-        _tab_index = (_tab_index + 1) % _tab_list.size();
+        if (!_tab_list.empty()) {
+            _tab_index = (_tab_index + 1) % _tab_list.size();
+        }
     }
     else {
         _front.push_back(_c);
