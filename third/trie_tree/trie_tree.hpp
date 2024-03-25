@@ -49,13 +49,16 @@ public:
     void add(const std::string& _s);
     bool del(const std::string& _s);
     void clear();
+    /**
+     * @brief whether the tree contains %_s, return false if %_s.empty()
+    */
     bool query(const std::string& _s) const;
     /**
-     * @brief list all completions prefixed with %_s
+     * @brief list all completions prefixed with %_s, return all words if %_s.empty()
     */
     std::vector<std::string> tab(const std::string& _s) const;
     /**
-     * @brief common prefix of all completions prefixed with %_s
+     * @brief common prefix of all completions prefixed with %_s, all words prefixed with ""
     */
     std::string next(const std::string& _s) const;
     /**

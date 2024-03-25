@@ -34,6 +34,7 @@ auto trie_tree::locate(const std::string& _s) const
 auto trie_tree::trace(const std::string& _s)
 -> std::vector<trie_tree_node*> {
     std::vector<trie_tree_node*> _path;
+    if (_s.empty()) return _path;
     _path.reserve(_max_depth);
     trie_tree_node* _p = &_root;
     for (const auto _c : _s) {
@@ -58,6 +59,7 @@ trie_tree::trie_tree(std::initializer_list<const char* const> _il)
 
 auto trie_tree::add(const std::string& _s)
 -> void {
+    if (_s.empty()) return;
     trie_tree_node* _p = &_root;
     size_t _depth = 0;
     for (const auto _c : _s) {
@@ -76,6 +78,7 @@ auto trie_tree::add(const std::string& _s)
 }
 auto trie_tree::del(const std::string& _s)
 -> bool {
+    if (_s.empty()) return false;
     std::vector<trie_tree_node*> _path = trace(_s);
     if (_path.empty()) return false;
     trie_tree_node* _p = _path.back();
@@ -98,13 +101,14 @@ auto trie_tree::clear()
 }
 auto trie_tree::query(const std::string& _s) const
 -> bool {
+    if (_s.empty()) return false;
     const trie_tree_node* _p = locate(_s);
     return _p == &_root;
 }
 auto trie_tree::tab(const std::string& _s) const
 -> std::vector<std::string> {
     const trie_tree_node* _p = locate(_s);
-    if (_p == &_root) return {};
+    if (!_s.empty() && _p == &_root) return {};
     std::vector<std::string> _completion;
     std::string _path; _path.reserve(_max_depth);
     std::function<void(const trie_tree_node* _p)> dfs
@@ -134,7 +138,7 @@ auto trie_tree::next(const std::string& _s) const
             _p = &_root; break;
         }
     }
-    if (_p == &_root) return {};
+    if (!_s.empty() && _p == &_root) return {};
     std::string _completion;
     while (_p->_children.size() == 1 && !_p->_end_of_word) {
         _p = _p->_children.cbegin()->second;
