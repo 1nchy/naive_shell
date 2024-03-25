@@ -105,7 +105,7 @@ private: // tab
         file = 0x1 << 0,
         program = 0x1 << 1,
         env = 0x1 << 2,
-        cwd = 0x1 << 3,
+        // cwd = 0x1 << 3,
     };
     bool env_symbol(const std::string&) const;
     #define tab_type_check(_type, _t) ((tab_type::_type) & (_t))
@@ -119,9 +119,8 @@ private: // tab
     std::vector<std::string> build_program_tab_list(const std::string&);
     std::vector<std::string> build_file_tab_list(const std::string&);
     std::vector<std::string> build_env_tab_list(const std::string&);
-    std::vector<std::string> build_cwd_tab_list(const std::string&);
     void fetch_program_dict();
-    void fetch_file_dict();
+    void fetch_file_dict(const std::filesystem::path&);
     void fetch_env_dict();
     void fetch_cwd_dict();
 private: // history

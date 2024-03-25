@@ -197,7 +197,7 @@ std::string shell_backend::build_information() {
 std::vector<std::string> shell_backend::build_tab_list(const std::string& _line) {
     if (_line.empty()) return {};
     auto _tab_parse_status = parse_status::parsing;
-    size_t _i = 0; std::string _word_2bc; tab_type _word_type = tab_type::cwd;
+    size_t _i = 0; std::string _word_2bc; tab_type _word_type = tab_type::file;
     // tab parse
     while (_tab_parse_status != parse_status::eof) {
         // skip blank between words
@@ -228,15 +228,15 @@ std::vector<std::string> shell_backend::build_tab_list(const std::string& _line)
             // else if (_c == '\"') {}
             // else if (_c == '`') {}
             else if (_c == ' ') {
-                _word_2bc.clear(); _word_type = tab_type::cwd; break;
+                _word_2bc.clear(); _word_type = tab_type::file; break;
             }
             else {
                 size_t _l = _tab_symbol_dict.longest_match(_line.cbegin() + _i, _line.cend());
                 if (_l == 0) { // normal character
-                    _word.push_back(_c);
+                    _word_2bc.push_back(_c);
                     continue;
                 }
-                _word_2bc.clear(); _word_type = tab_type::cwd;
+                _word_2bc.clear(); _word_type = tab_type::file;
                 const std::string _symbol = _line.substr(_i, _l); _i += _l;
                 if (pipe_symbol(_symbol)) {
                     _word_type = tab_type::program;
@@ -266,10 +266,6 @@ std::vector<std::string> shell_backend::build_tab_list(const std::string& _line)
     if (tab_type_check(env, _word_type)) {
         const auto& _env_tab_list = build_env_tab_list(_word_2bc);
         _tab_list.insert(_tab_list.end(), _env_tab_list.cbegin(), _env_tab_list.cend());
-    }
-    if (tab_type_check(cwd, _word_type)) {
-        const auto& _cwd_tab_list = build_cwd_tab_list(_word_2bc);
-        _tab_list.insert(_tab_list.end(), _cwd_tab_list.cbegin(), _cwd_tab_list.cend());
     }
     return _tab_list;
 }
@@ -715,19 +711,55 @@ bool shell_backend::env_symbol(const std::string& _r) const {
 std::vector<std::string> shell_backend::build_program_tab_list(const std::string&) {
     return {};
 }
-std::vector<std::string> shell_backend::build_file_tab_list(const std::string&) {
-    return {};
+std::vector<std::string> shell_backend::build_file_tab_list(const std::string& _incompleted_path) {
+    if (_incompleted_path.empty()) {
+        fetch_cwd_dict();
+        return _cwd_dict.tab("");
+    }
+    const bool _end_with_separator = _incompleted_path.back() == '/';
+    std::filesystem::path _path(_incompleted_path);
+    const std::string _final_part = (_end_with_separator ? "" : _path.filename().string());
+    if (!_end_with_separator) {
+        _path = _path.parent_path();
+    }
+    if (_path.empty()) _path = _cwd;
+    if (!std::filesystem::exists(_path)) {
+        return {};
+    }
+    fetch_file_dict(_path);
+    return _file_dict.tab(_final_part);
 }
 std::vector<std::string> shell_backend::build_env_tab_list(const std::string&) {
     return {};
 }
-std::vector<std::string> shell_backend::build_cwd_tab_list(const std::string&) {
-    return {};
-}
 void shell_backend::fetch_program_dict() {}
-void shell_backend::fetch_file_dict() {}
+void shell_backend::fetch_file_dict(const std::filesystem::path& _path) {
+    _file_dict.clear();
+    std::filesystem::directory_entry _entry(_path);
+    if (_entry.status().type() != std::filesystem::file_type::directory) {
+        return;
+    }
+    std::filesystem::directory_iterator _list(_path);
+    for (auto& _i : _list) {
+        const auto _file_name = _i.path().filename().string();
+        if (_file_name == "." || _file_name == "..") continue;
+        _file_dict.add(_file_name);
+    }
+}
 void shell_backend::fetch_env_dict() {}
-void shell_backend::fetch_cwd_dict() {}
+void shell_backend::fetch_cwd_dict() {
+    _cwd_dict.clear();
+    std::filesystem::directory_entry _entry(_cwd);
+    if (_entry.status().type() != std::filesystem::file_type::directory) {
+        return;
+    }
+    std::filesystem::directory_iterator _list(_cwd);
+    for (auto& _i : _list) {
+        const auto _file_name = _i.path().filename().string();
+        if (_file_name == "." || _file_name == "..") continue;
+        _cwd_dict.add(_file_name);
+    }
+}
 
 
 void shell_backend::load_history() {
