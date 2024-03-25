@@ -48,6 +48,7 @@ public:
     ~trie_tree() = default;
     void add(const std::string& _s);
     bool del(const std::string& _s);
+    void clear();
     bool query(const std::string& _s) const;
     /**
      * @brief list all completions prefixed with %_s

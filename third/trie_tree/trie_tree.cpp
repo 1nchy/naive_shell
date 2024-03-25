@@ -89,6 +89,13 @@ auto trie_tree::del(const std::string& _s)
     }
     return true;
 }
+auto trie_tree::clear()
+-> void {
+    for (auto& _i : _root._children) {
+        delete _i.second;
+    }
+    _root._children.clear();
+}
 auto trie_tree::query(const std::string& _s) const
 -> bool {
     const trie_tree_node* _p = locate(_s);
