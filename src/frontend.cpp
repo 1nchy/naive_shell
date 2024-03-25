@@ -17,7 +17,6 @@ const char* shell_frontend::color_mode[] = {
 static_assert(sizeof(shell_frontend::color_mode) / sizeof(shell_frontend::color_mode[0]) == shell_frontend::ansi_color::color_count);
 
 shell_frontend::shell_frontend(int _in, int _out, int _err) {
-    load_history();
     _backend = &shell_backend::singleton(_in, _out, _err);
 }
 shell_frontend& shell_frontend::singleton(int _in, int _out, int _err) {
@@ -86,9 +85,6 @@ bool shell_frontend::read_line() {
     _M_term_end_handler();
     return true;
 }
-
-
-void shell_frontend::load_history() {}
 
 
 void shell_frontend::enter_handler(char) {

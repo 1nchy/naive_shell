@@ -22,8 +22,6 @@ public:
 private:
     bool wait() override;
     bool read_line();
-private: // history
-    void load_history();
 private: // special character handler void(char)
     using character_handler = void(shell_frontend::*)(char);
     // \\r \\n
