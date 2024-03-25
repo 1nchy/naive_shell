@@ -126,6 +126,9 @@ $ ls | grep hpp | sort -r | cat [< out_file > in_file]
 
 因此我们在解释命令序列的时候，需要定义下面三种函数`build_word`、`build_instruction`、`build_command`。他们分别负责构建词汇、构建指令、构建命令。
 
+### tab 补全
+补全主要有以下几种类型：无补全，文件（路径）补全，可执行文件补全，环境变量补全。
+
 ### shell 类型
 shell 应该保存以下的内容
 > cwd 等环境变量

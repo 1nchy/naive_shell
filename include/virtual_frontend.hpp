@@ -29,8 +29,6 @@ protected:
     const int _out;
     const int _err;
     std::string _command_line;
-    std::vector<std::string> _tab_list;
-    bool _tab_dirty = false;
     backend_interface* _backend = nullptr;
 };
 

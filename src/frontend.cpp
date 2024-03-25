@@ -163,7 +163,13 @@ bool shell_frontend::read_line() {
         }
     }
     else if (_c == '\t') {
-
+        if (word_2b_completed()) {
+            const std::string _line_2bc(_front.cbegin(), _front.cend());
+            _tab_list = _backend->build_tab_list(_line_2bc);
+            _tab_index = _tab_list.size() - 1;
+        }
+        // _tab_list ready
+        _tab_index = (_tab_index + 1) % _tab_list.size();
     }
     else {
         _front.push_back(_c);
@@ -178,6 +184,18 @@ bool shell_frontend::read_line() {
 
 
 void shell_frontend::load_history() {}
+
+
+/**
+ * @return true for update, false for not changed
+*/
+bool shell_frontend::word_2b_completed() {
+    size_t _seed = _front.size() * _front.size();
+    for (const auto& _c : _front) {
+        _seed ^= _c + 0x9e3779b9 + (_seed << 6) + (_seed >> 2);
+    }
+    return _seed != _tab_signature;
+}
 
 
 void shell_frontend::cursor_move_back(size_t _n) {

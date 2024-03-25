@@ -22,6 +22,11 @@ private:
     bool read_line();
 private: // history
     void load_history();
+private: // tab
+    bool word_2b_completed();
+    std::vector<std::string> _tab_list;
+    size_t _tab_index = 0;
+    size_t _tab_signature = -1;
 private: // view
     void cursor_move_back(size_t); // move cursor back
     void fill_blank(size_t);
