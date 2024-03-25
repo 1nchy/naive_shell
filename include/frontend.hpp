@@ -23,25 +23,59 @@ private:
     bool wait() override;
     bool read_line();
 private: // special character handler void(char)
-    using character_handler = void(shell_frontend::*)(char);
+    enum struct expand_char : short {
+        ec_default = 0,
+        ec_lf = '\n', ec_cr = '\r',
+        // ec_space = ' ', ec_exclamation = '!', ec_double_quotes = '\"',
+        // ec_hashtag = '#', ec_dollar = '$', ec_percent = '%',
+        // ec_ampersand = '&', ec_single_quote = '\'', ec_lparentheses = '(', ec_rparentheses = ')',
+        // ec_asterisk = '*', ec_plus = '+', ec_comma = ',', ec_minus = '-', ec_dot = '.', ec_slash = '/',
+        // ec_0 = '0', ec_1, ec_2, ec_3, ec_4, ec_5, ec_6, ec_7, ec_8, ec_9,
+        // ec_colon = ':', ec_semicolon = ';', ec_less = '<', ec_equal = '=', ec_greater = '>', ec_question = '?', ec_at = '@',
+        // ec_A = 'A', ec_B, ec_C, ec_D, ec_E, ec_F, ec_G, ec_H, ec_I, ec_J,
+        // ec_K, ec_L, ec_M, ec_N, ec_O, ec_P, ec_Q, ec_R, ec_S, ec_T,
+        // ec_U, ec_V, ec_W, ec_X, ec_Y, ec_Z,
+        // ec_lbrackets = '[', ec_backslash = '\\', ec_rbrackets = ']', ec_xor = '^', ec_underscore = '_', ec_back_quote = '`',
+        // ec_a = 'a', ec_b, ec_c, ec_d, ec_e, ec_f, ec_g, ec_h, ec_i, ec_j,
+        // ec_k, ec_l, ec_m, ec_n, ec_o, ec_p, ec_q, ec_r, ec_s, ec_t,
+        // ec_u, ec_v, ec_w, ec_x, ec_y, ec_z,
+        // ec_lbraces = '{', ec_pipe = '|', ec_rbraces = '}', ec_tilde = '~',
+        ec_up = 128, ec_down, ec_left, ec_right,
+        ec_esc, ec_home, ec_end, ec_del, ec_back, ec_tab,
+        ec_pgup, ec_pgdn, ec_ins, ec_ctrld, ec_eof,
+    };
+    short _M_read_character();
+    using character_handler = void(shell_frontend::*)(short);
     // \\r \\n
-    void enter_handler(char);
+    void enter_handler(short);
     // ctrl+c \\04; ctrl+d \\03
-    void end_handler(char);
-    // ^[* (up down left right home end del)
-    void escape_handler(char);
-    // backspace 127
-    void backspace_handler(char);
-    // \\t
-    void tab_handler(char);
-    void default_handler(char);
-    const std::unordered_map<char, character_handler> _char_handler_map = {
-        {'\r', &shell_frontend::enter_handler}, {'\n', &shell_frontend::enter_handler},
-        {'\03', &shell_frontend::end_handler}, {'\04', &shell_frontend::end_handler},
-        {'\033', &shell_frontend::escape_handler},
-        {127, &shell_frontend::backspace_handler},
-        {'\t', &shell_frontend::tab_handler},
-        {0, &shell_frontend::default_handler},
+    void ctrld_handler(short);
+    void esc_handler(short);
+    void up_arrow_handler(short);
+    void down_arrow_handler(short);
+    void left_arrow_handler(short);
+    void right_arrow_handler(short);
+    void home_handler(short);
+    void end_handler(short);
+    void del_handler(short);
+    void back_handler(short);
+    void tab_handler(short);
+    void default_handler(short);
+    const std::unordered_map<short, character_handler> _char_handler_map = {
+        {(short)expand_char::ec_lf, &shell_frontend::enter_handler},
+        {(short)expand_char::ec_cr, &shell_frontend::enter_handler},
+        {(short)expand_char::ec_ctrld, &shell_frontend::ctrld_handler},
+        {(short)expand_char::ec_esc, &shell_frontend::esc_handler},
+        {(short)expand_char::ec_up, &shell_frontend::up_arrow_handler},
+        {(short)expand_char::ec_down, &shell_frontend::down_arrow_handler},
+        {(short)expand_char::ec_left, &shell_frontend::left_arrow_handler},
+        {(short)expand_char::ec_right, &shell_frontend::right_arrow_handler},
+        {(short)expand_char::ec_home, &shell_frontend::home_handler},
+        {(short)expand_char::ec_end, &shell_frontend::end_handler},
+        {(short)expand_char::ec_del, &shell_frontend::del_handler},
+        {(short)expand_char::ec_back, &shell_frontend::back_handler},
+        {(short)expand_char::ec_tab, &shell_frontend::tab_handler},
+        {(short)expand_char::ec_default, &shell_frontend::default_handler},
     };
 private: // tab
     bool has_tab_next();

@@ -48,127 +48,178 @@ bool shell_frontend::wait() {
     return false;
 }
 bool shell_frontend::read_line() {
-    clear(); char _c;
+    clear();
     show_prompt();
     _end_of_file = false;
-    _M_term_start_handler();
     while (!_end_of_file) {
-    const auto _r = _M_read(_c);
-    if (_r == -1) {
-        if (errno == EINTR) continue;
-        else {
-            _M_term_end_handler();
+        const auto _c = _M_read_character();
+        // input normally
+        if (_c == (short)expand_char::ec_eof || _c == (short)expand_char::ec_ctrld) {
+            _M_write('\n');
             return false;
         }
+        if (_c == (short)expand_char::ec_cr || _c == (short)expand_char::ec_lf) {
+            (this->*_char_handler_map.at(_c))(_c);
+            _M_write('\n');
+            return true;
+        }
+        if (_char_handler_map.contains(_c)) {
+            (this->*_char_handler_map.at(_c))(_c);
+        }
+        else {
+            (this->*_char_handler_map.at((short)expand_char::ec_default))(_c);
+        }
     }
-    else if (_r == 0) {
-        _end_of_file = true;
-        _M_term_end_handler();
-        return false;
-    }
-    // input normally
-    if (_c == '\r' || _c == '\n') {
-        (this->*_char_handler_map.at(_c))(_c);
-        return true;
-    }
-    else if (_c == '\04' || _c == '\03') { // ctrl+c or ctrl+d
-        (this->*_char_handler_map.at(_c))(_c);
-        return false;
-    }
-    else if (_char_handler_map.contains(_c)) {
-        (this->*_char_handler_map.at(_c))(_c);
-    }
-    else {
-        (this->*_char_handler_map.at(0))(_c);
-    }
-    }
-    _M_term_end_handler();
+    _M_write('\n');
     return true;
 }
 
 
-void shell_frontend::enter_handler(char) {
+/**
+ * @brief 
+*/
+short shell_frontend::_M_read_character() {
+    _M_term_start_handler();
+    char _c;
+    short _result;
+    while (true) {
+        const auto _r = _M_read(_c);
+        if (_r == -1) {
+            if (errno == EINTR) continue;
+            else {
+                _M_term_end_handler();
+                return (short)expand_char::ec_eof;
+            }
+        }
+        else if (_r == 0) {
+            _M_term_end_handler();
+            return (short)expand_char::ec_eof;
+        }
+        if (_c == '\r') {
+            _result = (short)expand_char::ec_cr;
+        }
+        else if (_c == '\n') {
+            _result = (short)expand_char::ec_lf;
+        }
+        else if (_c == '\04' || _c == '\03') {
+            _result = (short)expand_char::ec_ctrld;
+        }
+        else if (_c == '\033') {
+            _M_read(_c); _M_read(_c);
+            if (_c == 'A') {
+                _result = (short)expand_char::ec_up;
+            }
+            else if (_c == 'B') {
+                _result = (short)expand_char::ec_down;
+            }
+            else if (_c == 'C') {
+                _result = (short)expand_char::ec_right;
+            }
+            else if (_c == 'D') {
+                _result = (short)expand_char::ec_left;
+            }
+            else if (_c == 'H') {
+                _result = (short)expand_char::ec_home;
+            }
+            else if (_c == 'F') {
+                _result = (short)expand_char::ec_end;
+            }
+            else if (_c == '3') {
+                _M_read(_c);
+                _result = (short)expand_char::ec_del;
+            }
+        }
+        else if (_c == 127) {
+            _result = (short)expand_char::ec_back;
+        }
+        else if (_c == '\t') {
+            _result = (short)expand_char::ec_tab;
+        }
+        else {
+            _result = _c;
+        }
+        break;
+    }
+    _M_term_end_handler();
+    return _result;
+}
+void shell_frontend::enter_handler(short) {
     rewrite_back();
     if (empty()) {} // todo
     build_line();
     _backend->append_history(_command_line);
     _M_term_end_handler();
 }
-void shell_frontend::end_handler(char) {
+void shell_frontend::ctrld_handler(short) {
     rewrite_back();
     _end_of_file = true;
     _M_term_end_handler();
 }
-void shell_frontend::escape_handler(char) {
-    char _subc;
-    _M_read(_subc);
-    _M_read(_subc);
-    if (_subc == 'A') { // up arrow ^[[A
-        cursor_move_back(_front.size());
-        fill_blank(_front.size() + _back.size());
-        cursor_move_back(_front.size() + _back.size());
-        const auto& _prev_cmd = _backend->prev_history();
-        if (_prev_cmd.empty()) {
-            clear();
-        }
-        else {
-            _M_write(_prev_cmd);
-            clear();
-            _front.assign(_prev_cmd.cbegin(), _prev_cmd.cend());
-        }
+void shell_frontend::esc_handler(short) {}
+void shell_frontend::up_arrow_handler(short) {
+    cursor_move_back(_front.size());
+    fill_blank(_front.size() + _back.size());
+    cursor_move_back(_front.size() + _back.size());
+    const auto& _prev_cmd = _backend->prev_history();
+    if (_prev_cmd.empty()) {
+        clear();
     }
-    else if (_subc == 'B') { // down arrow ^[[B
-        cursor_move_back(_front.size());
-        fill_blank(_front.size() + _back.size());
-        cursor_move_back(_front.size() + _back.size());
-        const auto& _next_cmd = _backend->next_history();
-        if (_next_cmd.empty()) {
-            clear();
-        }
-        else {
-            _M_write(_next_cmd);
-            clear();
-            _front.assign(_next_cmd.cbegin(), _next_cmd.cend());
-        }
-    }
-    else if (_subc == 'D') { // left arrow ^[[D
-        if (!_front.empty()) {
-            _back.push_back(_front.back());
-            _front.pop_back();
-            cursor_move_back(1);
-        }
-    }
-    else if (_subc == 'C') { // right arrow ^[[C
-        if (!_back.empty()) {
-            rewrite_back();
-            _front.push_back(_back.back());
-            _back.pop_back();
-            cursor_move_back(_back.size());
-        }
-    }
-    else if (_subc == 'H') { // home key ^[[H
-        rewrite_back();
-        _back.insert(_back.end(), _front.crbegin(), _front.crend());
-        _front.clear();
-        cursor_move_back(_back.size());
-    }
-    else if (_subc == 'F') { // end key ^[[F
-        rewrite_back();
-        _front.insert(_front.end(), _back.crbegin(), _back.crend());
-        _back.clear();
-    }
-    else if (_subc == '3') { // del key ^[[3~
-        _M_read(_subc); // get '~'
-        if (!_back.empty()) {
-            // viewer_back(5);
-            _back.pop_back();
-            rewrite_back();
-            fill_blank(1);
-            cursor_move_back(_back.size() + 1);
-        }
+    else {
+        _M_write(_prev_cmd);
+        clear();
+        _front.assign(_prev_cmd.cbegin(), _prev_cmd.cend());
     }
 }
-void shell_frontend::backspace_handler(char) {
+void shell_frontend::down_arrow_handler(short) {
+    cursor_move_back(_front.size());
+    fill_blank(_front.size() + _back.size());
+    cursor_move_back(_front.size() + _back.size());
+    const auto& _next_cmd = _backend->next_history();
+    if (_next_cmd.empty()) {
+        clear();
+    }
+    else {
+        _M_write(_next_cmd);
+        clear();
+        _front.assign(_next_cmd.cbegin(), _next_cmd.cend());
+    }
+}
+void shell_frontend::left_arrow_handler(short) { // left arrow ^[[D
+    if (!_front.empty()) {
+        _back.push_back(_front.back());
+        _front.pop_back();
+        cursor_move_back(1);
+    }
+}
+void shell_frontend::right_arrow_handler(short) { // right arrow ^[[C
+    if (!_back.empty()) {
+        rewrite_back();
+        _front.push_back(_back.back());
+        _back.pop_back();
+        cursor_move_back(_back.size());
+    }
+}
+void shell_frontend::home_handler(short) { // home key ^[[H
+    rewrite_back();
+    _back.insert(_back.end(), _front.crbegin(), _front.crend());
+    _front.clear();
+    cursor_move_back(_back.size());
+}
+void shell_frontend::end_handler(short) { // end key ^[[F
+    rewrite_back();
+    _front.insert(_front.end(), _back.crbegin(), _back.crend());
+    _back.clear();
+}
+void shell_frontend::del_handler(short) { // del key ^[[3~
+    if (!_back.empty()) {
+        // viewer_back(5);
+        _back.pop_back();
+        rewrite_back();
+        fill_blank(1);
+        cursor_move_back(_back.size() + 1);
+    }
+}
+void shell_frontend::back_handler(short) {
     if (!_front.empty()) {
         text_backspace(1);
         _front.pop_back();
@@ -177,7 +228,7 @@ void shell_frontend::backspace_handler(char) {
         cursor_move_back(_back.size() + 1);
     }
 }
-void shell_frontend::tab_handler(char) {
+void shell_frontend::tab_handler(short) {
     const std::string _line_2bc(_front.cbegin(), _front.cend());
     do {
         if (!has_tab_next()) {
@@ -209,9 +260,10 @@ void shell_frontend::tab_handler(char) {
         }
     } while (0);
 }
-void shell_frontend::default_handler(char _c) {
-    _front.push_back(_c);
-    _M_write(_c);
+void shell_frontend::default_handler(short _c) {
+    char _ch = _c;
+    _front.push_back(_ch);
+    _M_write(_ch);
     rewrite_back();
     cursor_move_back(_back.size());
 }
@@ -239,29 +291,13 @@ void shell_frontend::switch_tab_list() {
         cursor_move_back(_back.size() + _s.size());
         _prev_tab_word_size = _s.size();
         // read keyboard
-        const auto _r = _M_read(_c);
-        if (_r == -1) {
-            if (errno == EINTR) continue;
-            else {
-                _end_of_file = true; return;
-            }
-        }
-        else if (_r == 0) {
-            _end_of_file = true; return;
-        }
-        if (_c != '\t') {
+        const auto _r = _M_read_character();
+        if (_r != (short)expand_char::ec_tab) {
             _M_write(_s);
             _front.insert(_front.end(), _s.cbegin(), _s.cend());
             rewrite_back();
             cursor_move_back(_back.size());
             return;
-        }
-        else { // todo
-            // if (_c == '\033') {
-            //     _M_read(_c);
-            //     _M_read(_c);
-            //     if (_c == '3') _M_read(_c);
-            // }
         }
     }
 
@@ -326,7 +362,6 @@ void shell_frontend::_M_term_end_handler() {
     tcflush(_in, TCIFLUSH);
     tcsetattr(_in, TCSANOW, &_default_in_setting);
     _M_cooked();
-    _M_write('\n');
 }
 
 ssize_t shell_frontend::_M_read(char& _c) {
