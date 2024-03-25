@@ -105,7 +105,7 @@ short shell_frontend::_M_read_character() {
             _result = (short)expand_char::ec_ctrld;
         }
         else if (_c == '\033') {
-            _M_read(_c); _M_read(_c);
+            _M_read(_c); _M_read(_c); // unblocked read // todo
             if (_c == 'A') {
                 _result = (short)expand_char::ec_up;
             }
@@ -124,9 +124,21 @@ short shell_frontend::_M_read_character() {
             else if (_c == 'F') {
                 _result = (short)expand_char::ec_end;
             }
+            else if (_c == '2') {
+                _M_read(_c);
+                _result = (short)expand_char::ec_ins;
+            }
             else if (_c == '3') {
                 _M_read(_c);
                 _result = (short)expand_char::ec_del;
+            }
+            else if (_c == '5') {
+                _M_read(_c);
+                _result = (short)expand_char::ec_pgup;
+            }
+            else if (_c == '6') {
+                _M_read(_c);
+                _result = (short)expand_char::ec_pgdn;
             }
         }
         else if (_c == 127) {
@@ -300,7 +312,6 @@ void shell_frontend::switch_tab_list() {
             return;
         }
     }
-
 }
 size_t shell_frontend::front_signature() const {
     size_t _seed = _front.size() * _front.size();
