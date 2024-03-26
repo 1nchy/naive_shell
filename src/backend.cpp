@@ -11,8 +11,8 @@
 
 namespace asp {
 
-#define BUILT_IN_INSTRUCTION_ARGS_CHECK(_args) \
-if (!builtin_instruction_check(__func__, _args)) return;
+// #define BUILT_IN_INSTRUCTION_ARGS_CHECK(_args) \
+// if (!builtin_instruction_check(__func__, _args)) return;
 
 static const std::string _empty_string;
 static signal_stack _signal_stack;
@@ -181,7 +181,7 @@ bool shell_backend::execute() {
     clear();
     return true;
 }
-std::string shell_backend::build_information() {
+const std::string shell_backend::build_information() {
     std::string _info;
     _info.push_back('[');
     _info.append(_cwd.filename());
@@ -194,7 +194,7 @@ std::string shell_backend::build_information() {
     _info.push_back(']');
     return _info;
 }
-std::string shell_backend::build_tab_next(const std::string& _line) {
+const std::string shell_backend::build_tab_next(const std::string& _line) {
     parse_tab(_line);
     trie_tree _tab_next_dict;
     if (tab_type_check(file, _word2bc_type)) {
@@ -211,7 +211,7 @@ std::string shell_backend::build_tab_next(const std::string& _line) {
     }
     return _tab_next_dict.next("");
 }
-std::vector<std::string> shell_backend::build_tab_list(const std::string& _line) {
+const std::vector<std::string> shell_backend::build_tab_list(const std::string& _line) {
     parse_tab(_line);
     // tab classification
     std::vector<std::string> _tab_list;
@@ -424,6 +424,9 @@ void shell_backend::execute_instruction(const std::vector<std::string>& _args) {
     }
 }
 void shell_backend::execute_builtin_instruction(const std::vector<std::string>& _args) {
+    if (!builtin_instruction_check(_args[0], _args)) {
+        return;
+    }
     (this->*_builtin_instruction.at(_args[0])._handler)(_args);
 }
 
@@ -537,12 +540,12 @@ bool shell_backend::builtin_instruction_check(const std::string& _cmd, const std
 bool shell_backend::is_builtin_instruction(const std::string& _cmd) const {
     return _builtin_instruction.contains(_cmd);
 }
-void shell_backend::pwd(const std::vector<std::string>& _args) {
-    BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+void shell_backend::_M_pwd(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     printf("%s\n", _cwd.c_str());
 }
-void shell_backend::cd(const std::vector<std::string>& _args) {
-    BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+void shell_backend::_M_cd(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     if (_args.size() == 1) { // cd
         chdir(_home_dir.c_str());
     }
@@ -562,19 +565,19 @@ void shell_backend::cd(const std::vector<std::string>& _args) {
     _prev_cwd = _cwd;
     _cwd = std::filesystem::current_path();
 }
-void shell_backend::history(const std::vector<std::string>& _args) {
-    BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+void shell_backend::_M_history(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     for (const auto& _s : _history) {
         printf("%s\n", _s.c_str());
     }
 }
-void shell_backend::quit(const std::vector<std::string>& _args) {
-    BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+void shell_backend::_M_quit(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     this->~shell_backend();
     exit(EXIT_FAILURE);
 }
-void shell_backend::bg(const std::vector<std::string>& _args) {
-    BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+void shell_backend::_M_bg(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const size_t _s = std::stoi(_args[1]);
     if (!_bg_map.contains(_s)) {
         printf("wrong task id\n");
@@ -584,8 +587,8 @@ void shell_backend::bg(const std::vector<std::string>& _args) {
     auto& _j = _proc_map.at(_pid);
     ::kill(-_j.pgid(), SIGCONT);
 }
-void shell_backend::fg(const std::vector<std::string>& _args) {
-    BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+void shell_backend::_M_fg(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const size_t _s = std::stoi(_args[1]);
     if (!_bg_map.contains(_s)) {
         printf("wrong task id\n");
@@ -605,8 +608,8 @@ void shell_backend::fg(const std::vector<std::string>& _args) {
     while (waitpid(_pid, &_status, WSTOPPED) == -1 && errno == EINTR);
     waitpid_handler(_pid, _status);
 }
-void shell_backend::jobs(const std::vector<std::string>& _args) {
-    BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+void shell_backend::_M_jobs(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const std::vector<std::string> _states = {"Name", "State"};
     for (const auto& [_s, _p] : _bg_map) {
         const auto _vs = proc::get_status(_p, _states);
@@ -615,8 +618,8 @@ void shell_backend::jobs(const std::vector<std::string>& _args) {
         }
     }
 }
-void shell_backend::kill(const std::vector<std::string>& _args) {
-    BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+void shell_backend::_M_kill(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const size_t _i = std::stoi(_args[1]);
     if (!_bg_map.contains(_i)) {
         printf("wrong task id\n");
@@ -629,11 +632,16 @@ void shell_backend::kill(const std::vector<std::string>& _args) {
     while (waitpid(_pid, &_status, WSTOPPED) == -1 && errno == EINTR);
     waitpid_handler(_pid, _status);
 }
-void shell_backend::echo(const std::vector<std::string>& _args) {}
-void shell_backend::sleep(const std::vector<std::string>& _args) {
-    BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+void shell_backend::_M_sleep(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const auto _x = std::stoi(_args[1]);
     std::this_thread::sleep_for(std::chrono::seconds(_x));
+}
+void shell_backend::_M_echo(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+}
+void shell_backend::_M_export(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
 }
 
 
@@ -663,6 +671,9 @@ bool shell_backend::redirect_symbol(const std::string& _r) const {
 }
 bool shell_backend::background_symbol(const std::string& _r) const {
     return _r == "&";
+}
+const std::string shell_backend::expand_word(const std::string& _s) const {
+    return _s;
 }
 
 
@@ -806,6 +817,11 @@ void shell_backend::fetch_cwd_dict() {
         if (_file_name == "." || _file_name == "..") continue;
         _cwd_dict.add(_file_name);
     }
+}
+
+
+const std::string shell_backend::expand_env_variable(const std::string& _s) const {
+    return _s;
 }
 
 

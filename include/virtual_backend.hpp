@@ -25,9 +25,9 @@ public:
     virtual int parse(const std::string&) = 0;
     virtual bool compile() = 0;
     virtual bool execute() = 0;
-    virtual std::string build_information() = 0;
-    virtual std::string build_tab_next(const std::string&) = 0;
-    virtual std::vector<std::string> build_tab_list(const std::string&) = 0;
+    virtual const std::string build_information() = 0;
+    virtual const std::string build_tab_next(const std::string&) = 0;
+    virtual const std::vector<std::string> build_tab_list(const std::string&) = 0;
     virtual const std::string& prev_history() = 0;
     virtual const std::string& next_history() = 0;
     virtual void append_history(const std::string&) = 0;

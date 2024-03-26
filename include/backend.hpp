@@ -27,9 +27,9 @@ public:
     int parse(const std::string&) override;
     bool compile() override;
     bool execute() override;
-    std::string build_information() override;
-    std::string build_tab_next(const std::string&) override;
-    std::vector<std::string> build_tab_list(const std::string&) override;
+    const std::string build_information() override;
+    const std::string build_tab_next(const std::string&) override;
+    const std::vector<std::string> build_tab_list(const std::string&) override;
     const std::string& prev_history() override;
     const std::string& next_history() override;
     void append_history(const std::string&) override;
@@ -59,23 +59,25 @@ private: // built-in instruction
     };
     bool builtin_instruction_check(const std::string&, const std::vector<std::string>&);
     bool is_builtin_instruction(const std::string&) const;
-    void pwd(const std::vector<std::string>&);
-    void cd(const std::vector<std::string>&);
-    void history(const std::vector<std::string>&);
-    void quit(const std::vector<std::string>&);
-    void bg(const std::vector<std::string>&);
-    void fg(const std::vector<std::string>&);
-    void jobs(const std::vector<std::string>&);
-    void kill(const std::vector<std::string>&);
-    void echo(const std::vector<std::string>&);
-    void sleep(const std::vector<std::string>&);
+    void _M_pwd(const std::vector<std::string>&);
+    void _M_cd(const std::vector<std::string>&);
+    void _M_history(const std::vector<std::string>&);
+    void _M_quit(const std::vector<std::string>&);
+    void _M_bg(const std::vector<std::string>&);
+    void _M_fg(const std::vector<std::string>&);
+    void _M_jobs(const std::vector<std::string>&);
+    void _M_kill(const std::vector<std::string>&);
+    void _M_sleep(const std::vector<std::string>&);
+    void _M_echo(const std::vector<std::string>&);
+    void _M_export(const std::vector<std::string>&);
     const std::unordered_map<std::string, builtin_instruction> _builtin_instruction = {
-        {"pwd", {&shell_backend::pwd}}, {"cd", {&shell_backend::cd, 1, 2}},
-        {"history", {&shell_backend::history}}, {"quit", {&shell_backend::quit}},
-        {"bg", {&shell_backend::bg, 2, 2}}, {"fg", {&shell_backend::fg, 2, 2}},
-        {"jobs", {&shell_backend::jobs}}, {"kill", {&shell_backend::kill, 2, 2}},
-        {"echo", {&shell_backend::echo, 1, 0}},
-        {"sleep", {&shell_backend::sleep, 2, 2}},
+        {"pwd", {&shell_backend::_M_pwd}}, {"cd", {&shell_backend::_M_cd, 1, 2}},
+        {"history", {&shell_backend::_M_history}}, {"quit", {&shell_backend::_M_quit}},
+        {"bg", {&shell_backend::_M_bg, 2, 2}}, {"fg", {&shell_backend::_M_fg, 2, 2}},
+        {"jobs", {&shell_backend::_M_jobs}}, {"kill", {&shell_backend::_M_kill, 2, 2}},
+        {"sleep", {&shell_backend::_M_sleep, 2, 2}},
+        {"echo", {&shell_backend::_M_echo, 1, 0}},
+        {"export", {&shell_backend::_M_export, 1, 2}},
     };
 private: // command parsing
     enum parse_status {
@@ -94,6 +96,7 @@ private: // command parsing
     // > >> <
     bool redirect_symbol(const std::string&) const;
     bool background_symbol(const std::string&) const;
+    const std::string expand_word(const std::string&) const;
     parse_status _parse_status = parse_status::parsing;
     const trie_tree _parse_symbol_dict = {
         ">", ">>", "<", /*"<<",*/ ";", "|", "||", "&", "&&",
@@ -117,7 +120,6 @@ private: // tab
     tab_type _word2bc_type = tab_type::file;
     trie_tree _program_dict;
     trie_tree _file_dict;
-    trie_tree _env_dict;
     trie_tree _cwd_dict;
     void parse_tab(const std::string& _line);
     std::string build_program_tab_next(const std::string&);
@@ -130,6 +132,10 @@ private: // tab
     void fetch_file_dict(const std::filesystem::path&);
     void fetch_env_dict();
     void fetch_cwd_dict();
+private: // environment variables
+    std::unordered_map<std::string, std::string> _env_map;
+    trie_tree _env_dict;
+    const std::string expand_env_variable(const std::string&) const;
 private: // history
     void load_history();
     std::vector<std::string> _history;
