@@ -671,7 +671,9 @@ void shell_backend::_M_setenv(const std::vector<std::string>& _args) {
 }
 void shell_backend::_M_unsetenv(const std::vector<std::string>& _args) {
     // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
-    del_env_variable(_args[1]);
+    for (size_t _i = 1; _i < _args.size(); ++_i) {
+        del_env_variable(_args[_i]);
+    }
 }
 
 
@@ -901,6 +903,7 @@ void shell_backend::add_env_variable(const std::string& _k, const std::string& _
     _env_dict.add(_k);
 }
 void shell_backend::del_env_variable(const std::string& _k) {
+    _preseted_env_map.erase(_k);
     _customed_env_map.erase(_k);
     _env_dict.del(_k);
 }

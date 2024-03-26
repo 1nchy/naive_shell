@@ -79,7 +79,7 @@ private: // built-in instruction
         {"sleep", {&shell_backend::_M_sleep, 2, 2}},
         {"echo", {&shell_backend::_M_echo, 1, 0}},
         {"setenv", {&shell_backend::_M_setenv, 2, 3}},
-        {"unsetenv", {&shell_backend::_M_unsetenv, 2, 2}},
+        {"unsetenv", {&shell_backend::_M_unsetenv, 2, 0}},
     };
 private: // command parsing
     enum parse_status {
