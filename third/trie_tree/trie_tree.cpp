@@ -114,7 +114,8 @@ auto trie_tree::tab(const std::string& _s) const
     std::function<void(const trie_tree_node* _p)> dfs
     = [&](const trie_tree_node* _p) {
         if (_p->_end_of_word) {
-            if (!_path.empty()) _completion.emplace_back(_path);
+            // if (!_path.empty())
+            _completion.emplace_back(_path);
         }
         for (const auto& _i : _p->_children) {
             _path.push_back(_i.first);

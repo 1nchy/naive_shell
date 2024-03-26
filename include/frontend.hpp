@@ -83,6 +83,7 @@ private: // tab
     bool has_tab_list();
     void switch_tab_list();
     size_t front_signature() const;
+    inline bool usable_tab_list() const;
     std::string _tab_next;
     std::vector<std::string> _tab_list;
     size_t _tab_index = 0;

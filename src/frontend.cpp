@@ -272,15 +272,15 @@ void shell_frontend::tab_handler(short) {
         }
         if (!has_tab_list()) {
             _tab_list = _backend->build_tab_list(_line_2bc);
-            _tab_index = _tab_list.size() - 1;
             _tab_list_signature = front_signature();
             // _tab_list ready
-            if (_tab_list.empty()) break;
+            if (!usable_tab_list()) break;
+            _tab_index = _tab_list.size() - 1;
             switch_tab_list();
         }
         else { // unused branch
             _tab_list_signature = front_signature();
-            if (_tab_list.empty()) break;
+            if (!usable_tab_list()) break;
             // switch
             switch_tab_list();
         }
@@ -343,6 +343,12 @@ size_t shell_frontend::front_signature() const {
         _seed ^= _c + 0x9e3779b9 + (_seed << 6) + (_seed >> 2);
     }
     return _seed;
+}
+bool shell_frontend::usable_tab_list() const {
+    for (const auto& _s : _tab_list) {
+        if (!_s.empty()) return true;
+    }
+    return false;
 }
 
 
