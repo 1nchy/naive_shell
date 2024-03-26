@@ -9,6 +9,7 @@
 
 #include "signal_stack/signal_stack.hpp"
 #include "proc_status/proc_status.hpp"
+#include "file_system/file_system.hpp"
 #include "output/output.hpp"
 
 extern char** environ;
@@ -56,6 +57,7 @@ shell_backend::shell_backend(int _in, int _out, int _err)
 
     init_env_variable_map();
     fetch_env_dict();
+    fetch_program_dict();
 
     dup2(_in, STDIN_FILENO);
     dup2(_out, STDOUT_FILENO);
@@ -739,7 +741,7 @@ bool shell_backend::env_symbol(const std::string& _r) const {
     return _r == "$";
 }
 void shell_backend::parse_tab(const std::string& _line) {
-    _word_2bc.clear(); _word2bc_type = tab_type::file;
+    _word_2bc.clear(); _word2bc_type = tab_type::file | tab_type::program;
     if (_line.empty()) {
         _word2bc_type = tab_type::none; return;
     }
@@ -803,8 +805,8 @@ void shell_backend::parse_tab(const std::string& _line) {
         }
     }
 }
-std::string shell_backend::build_program_tab_next(const std::string&) {
-    return "";
+std::string shell_backend::build_program_tab_next(const std::string& _s) {
+    return _program_dict.next(_s);
 }
 std::string shell_backend::build_file_tab_next(const std::string& _incompleted_path) {
     if (_incompleted_path.empty()) {
@@ -827,8 +829,8 @@ std::string shell_backend::build_file_tab_next(const std::string& _incompleted_p
 std::string shell_backend::build_env_tab_next(const std::string& _s) {
     return _env_dict.next(_s);
 }
-std::vector<std::string> shell_backend::build_program_tab_list(const std::string&) {
-    return {};
+std::vector<std::string> shell_backend::build_program_tab_list(const std::string& _s) {
+    return _program_dict.tab(_s);
 }
 std::vector<std::string> shell_backend::build_file_tab_list(const std::string& _incompleted_path) {
     if (_incompleted_path.empty()) {
@@ -851,19 +853,33 @@ std::vector<std::string> shell_backend::build_file_tab_list(const std::string& _
 std::vector<std::string> shell_backend::build_env_tab_list(const std::string& _s) {
     return _env_dict.tab(_s);
 }
-void shell_backend::fetch_program_dict() {}
+void shell_backend::fetch_program_dict() {
+    const std::string _env_path = env_variable("PATH").second;
+    size_t _l = 0; size_t _r = 0;
+    asp::filesystem::file_handler _handler = [this](const std::filesystem::path& _i) {
+        const auto _file_name = _i.filename().string();
+        if (_file_name == "." || _file_name == "..") {}
+        else { _program_dict.add(_file_name); }
+    };
+    while (_l != _env_path.size()) {
+        while (_r != _env_path.size() && _env_path[_r] != ':') { ++_r; }
+        const std::filesystem::path _path {_env_path.substr(_l, _r - _l)};
+        asp::filesystem::for_each_file(_path, _handler);
+        if (_r != _env_path.size()) ++_r;
+        _l = _r;
+    }
+    for (const auto& [_k, _v] : _builtin_instruction) {
+        _program_dict.add(_k);
+    }
+}
 void shell_backend::fetch_file_dict(const std::filesystem::path& _path) {
     _file_dict.clear();
-    std::filesystem::directory_entry _entry(_path);
-    if (_entry.status().type() != std::filesystem::file_type::directory) {
-        return;
-    }
-    std::filesystem::directory_iterator _list(_path);
-    for (auto& _i : _list) {
-        const auto _file_name = _i.path().filename().string();
-        if (_file_name == "." || _file_name == "..") continue;
-        _file_dict.add(_file_name);
-    }
+    asp::filesystem::file_handler _handler = [this](const std::filesystem::path& _i) {
+        const auto _file_name = _i.filename().string();
+        if (_file_name == "." || _file_name == "..") {}
+        else { _file_dict.add(_file_name); }
+    };
+    asp::filesystem::for_each_file(_path, _handler);
 }
 void shell_backend::fetch_env_dict() { // just init
     _env_dict.clear();
@@ -876,16 +892,12 @@ void shell_backend::fetch_env_dict() { // just init
 }
 void shell_backend::fetch_cwd_dict() {
     _cwd_dict.clear();
-    std::filesystem::directory_entry _entry(_cwd);
-    if (_entry.status().type() != std::filesystem::file_type::directory) {
-        return;
-    }
-    std::filesystem::directory_iterator _list(_cwd);
-    for (auto& _i : _list) {
-        const auto _file_name = _i.path().filename().string();
-        if (_file_name == "." || _file_name == "..") continue;
-        _cwd_dict.add(_file_name);
-    }
+    asp::filesystem::file_handler _handler = [this](const std::filesystem::path& _i) {
+        const auto _file_name = _i.filename().string();
+        if (_file_name == "." || _file_name == "..") {}
+        else { _cwd_dict.add(_file_name); }
+    };
+    asp::filesystem::for_each_file(_cwd, _handler);
 }
 
 

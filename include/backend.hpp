@@ -119,7 +119,7 @@ private: // tab
         ">", ">>", "<", /*"<<",*/ ";", "|", "||", "&", "&&", "$",
     };
     std::string _word_2bc;
-    tab_type _word2bc_type = tab_type::file;
+    short _word2bc_type = tab_type::file;
     trie_tree _program_dict;
     trie_tree _file_dict;
     trie_tree _cwd_dict;
