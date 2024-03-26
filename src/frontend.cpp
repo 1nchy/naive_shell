@@ -74,6 +74,10 @@ bool shell_frontend::read_line() {
     _M_write('\n');
     return true;
 }
+void shell_frontend::clear() {
+    _front.clear(); _back.clear(); _command_line.clear();
+    _tab_next_signature = 0; _tab_list_signature = -1;
+}
 
 
 /**

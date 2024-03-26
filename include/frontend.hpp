@@ -22,6 +22,7 @@ public:
 private:
     bool wait() override;
     bool read_line();
+    void clear();
 private: // special character handler void(char)
     enum struct extended_char : short {
         ec_default = 0,
@@ -96,7 +97,6 @@ private: // view
     void rewrite_front();
     void rewrite_back();
     bool empty() const { return _front.empty() && _back.empty(); }
-    void clear() { _front.clear(); _back.clear(); _command_line.clear(); }
     void build_line();
 private: // termios
     void _M_cooked();
