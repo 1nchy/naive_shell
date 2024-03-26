@@ -708,7 +708,7 @@ bool shell_backend::background_symbol(const std::string& _r) const {
 }
 bool shell_backend::compile_word(std::string& _s) const {
     // supposed that %_s meets grammer rule
-    for (size_t _i = 0; _i < _s.size(); ++_i) {
+    for (size_t _i = 0; _i < _s.size();) {
         const auto _c = _s[_i];
         if (_c == '\\') {
             _s.erase(_s.cbegin() + _i);
@@ -725,13 +725,17 @@ bool shell_backend::compile_word(std::string& _s) const {
         else if (_c == '$') {
             // expand env variable
             const size_t _l = env_variable_length(_s, _i + 1);
-            if (_l == 0) continue;
-            const auto& _ev = env_variable(_s.substr(_i + 1, _l));
-            if (!_ev.first) continue;
-            _s.erase(_s.cbegin() + _i, _s.cbegin() + _i + 1 + _l);
-            _s.insert(_i, _ev.second);
-            _i += _ev.second.size();
+            if (_l != 0) {
+                const auto& _ev = env_variable(_s.substr(_i + 1, _l));
+                if (_ev.first) {
+                    _s.erase(_s.cbegin() + _i, _s.cbegin() + _i + 1 + _l);
+                    _s.insert(_i, _ev.second);
+                    _i += _ev.second.size();
+                    continue;
+                }
+            }
         }
+        ++_i;
     }
     return true;
 }
@@ -921,7 +925,8 @@ void shell_backend::del_env_variable(const std::string& _k) {
 }
 size_t shell_backend::env_variable_length(const std::string& _s, size_t _i) const {
     for (size_t _j = _i; _j < _s.size(); ++_j) {
-        if (_s[_j] == ' ') {
+        if (!isdigit(_s[_j]) && !isalpha(_s[_j])) {
+        // if (_s[_j] == ' ') {
             return _j - _i;
         }
     }
