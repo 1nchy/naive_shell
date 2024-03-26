@@ -69,7 +69,8 @@ private: // built-in instruction
     void _M_kill(const std::vector<std::string>&);
     void _M_sleep(const std::vector<std::string>&);
     void _M_echo(const std::vector<std::string>&);
-    void _M_export(const std::vector<std::string>&);
+    void _M_setenv(const std::vector<std::string>&);
+    void _M_unsetenv(const std::vector<std::string>&);
     const std::unordered_map<std::string, builtin_instruction> _builtin_instruction = {
         {"pwd", {&shell_backend::_M_pwd}}, {"cd", {&shell_backend::_M_cd, 1, 2}},
         {"history", {&shell_backend::_M_history}}, {"quit", {&shell_backend::_M_quit}},
@@ -77,7 +78,8 @@ private: // built-in instruction
         {"jobs", {&shell_backend::_M_jobs}}, {"kill", {&shell_backend::_M_kill, 2, 2}},
         {"sleep", {&shell_backend::_M_sleep, 2, 2}},
         {"echo", {&shell_backend::_M_echo, 1, 0}},
-        {"export", {&shell_backend::_M_export, 1, 2}},
+        {"setenv", {&shell_backend::_M_setenv, 3, 3}},
+        {"unsetenv", {&shell_backend::_M_unsetenv, 2, 2}},
     };
 private: // command parsing
     enum parse_status {
@@ -96,7 +98,7 @@ private: // command parsing
     // > >> <
     bool redirect_symbol(const std::string&) const;
     bool background_symbol(const std::string&) const;
-    const std::string expand_word(const std::string&) const;
+    bool compile_word(std::string&) const;
     parse_status _parse_status = parse_status::parsing;
     const trie_tree _parse_symbol_dict = {
         ">", ">>", "<", /*"<<",*/ ";", "|", "||", "&", "&&",
@@ -121,6 +123,7 @@ private: // tab
     trie_tree _program_dict;
     trie_tree _file_dict;
     trie_tree _cwd_dict;
+    trie_tree _env_dict;
     void parse_tab(const std::string& _line);
     std::string build_program_tab_next(const std::string&);
     std::string build_file_tab_next(const std::string&);
@@ -133,9 +136,14 @@ private: // tab
     void fetch_env_dict();
     void fetch_cwd_dict();
 private: // environment variables
-    std::unordered_map<std::string, std::string> _env_map;
-    trie_tree _env_dict;
-    const std::string expand_env_variable(const std::string&) const;
+    std::unordered_map<std::string, std::string> _preseted_env_map;
+    std::unordered_map<std::string, std::string> _customed_env_map;
+    // ~~trie_tree _env_dict~~;
+    void init_env_variable_map();
+    void add_env_variable(const std::string&, const std::string&);
+    void del_env_variable(const std::string&);
+    size_t env_variable_length(const std::string&, size_t) const;
+    const std::string& env_variable(const std::string&) const;
 private: // history
     void load_history();
     std::vector<std::string> _history;

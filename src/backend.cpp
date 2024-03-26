@@ -5,9 +5,13 @@
 #include <chrono>
 #include <thread>
 
+#include <unistd.h>
+
 #include "signal_stack/signal_stack.hpp"
 #include "proc_status/proc_status.hpp"
 #include "output/output.hpp"
+
+extern char** environ;
 
 namespace asp {
 
@@ -50,6 +54,9 @@ shell_backend::shell_backend(int _in, int _out, int _err)
     _home_dir = std::filesystem::path(getenv("HOME"));
     _cwd = _prev_cwd = std::filesystem::current_path();
 
+    init_env_variable_map();
+    fetch_env_dict();
+
     dup2(_in, STDIN_FILENO);
     dup2(_out, STDOUT_FILENO);
     dup2(_err, STDERR_FILENO);
@@ -81,11 +88,11 @@ int shell_backend::parse(const std::string& _line) {
                 _parse_status = parse_status::single_quote;
                 return 1;
             }
-            if (_line[_i] == '\'') {
-                _parse_status = parse_status::parsing; ++_i;
+            _word.push_back(_line[_i]); ++_i;
+            if (_word.back() == '\'') {
+                _parse_status = parse_status::parsing;
                 break;
             }
-            _word.push_back(_line[_i]); ++_i;
         }
     }
     // else if (_parse_status == parse_status::double_quotes) {}
@@ -103,7 +110,7 @@ int shell_backend::parse(const std::string& _line) {
     for (; _i < _line.size(); ++_i) {
         const auto& _c = _line[_i];
         if (_c == '\\') {
-            ++_i;
+            _word.push_back(_c); ++_i;
             if (_i == _line.size() || _line[_i] == '\n' || _line[_i] == '\r') {
                 _parse_status = parse_status::backslash;
                 return 1;
@@ -111,17 +118,17 @@ int shell_backend::parse(const std::string& _line) {
             _word.push_back(_line[_i]);
         }
         else if (_c == '\'') {
-            ++_i;
+            _word.push_back(_c); ++_i;
             while (true) {
                 if (_i == _line.size() || _line[_i] == '\n' || _line[_i] == '\r') {
                     _parse_status = parse_status::single_quote;
                     return 1;
                 }
-                if (_line[_i] == '\'') {
-                    _parse_status = parse_status::parsing; ++_i;
+                _word.push_back(_line[_i]); ++_i;
+                if (_word.back() == '\'') {
+                    _parse_status = parse_status::parsing;
                     break;
                 }
-                _word.push_back(_line[_i]); ++_i;
             }
         }
         // else if (_c == '\"') {}
@@ -169,8 +176,14 @@ int shell_backend::parse(const std::string& _line) {
 }
 bool shell_backend::compile() {
     if (_parse_status != parse_status::eof) {
-        clear();
-        return false;
+        clear(); return false;
+    }
+    for (auto& _cmd : _commands._parsed_command) {
+        for (auto& _ins : _cmd._instructions) {
+            for (auto& _w : _ins) {
+                if (!compile_word(_w)) return false;
+            }
+        }
     }
     return true;
 }
@@ -425,6 +438,7 @@ void shell_backend::execute_instruction(const std::vector<std::string>& _args) {
 }
 void shell_backend::execute_builtin_instruction(const std::vector<std::string>& _args) {
     if (!builtin_instruction_check(_args[0], _args)) {
+        printf("wrong parameter count\n");
         return;
     }
     (this->*_builtin_instruction.at(_args[0])._handler)(_args);
@@ -639,9 +653,20 @@ void shell_backend::_M_sleep(const std::vector<std::string>& _args) {
 }
 void shell_backend::_M_echo(const std::vector<std::string>& _args) {
     // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+    for (size_t _i = 1; _i < _args.size();) {
+        printf("%s", _args[_i].c_str());
+        ++_i;
+        if (_i != _args.size()) printf(" ");
+    }
+    printf("\n");
 }
-void shell_backend::_M_export(const std::vector<std::string>& _args) {
+void shell_backend::_M_setenv(const std::vector<std::string>& _args) {
     // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+    add_env_variable(_args[1], _args[2]);
+}
+void shell_backend::_M_unsetenv(const std::vector<std::string>& _args) {
+    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
+    del_env_variable(_args[1]);
 }
 
 
@@ -672,8 +697,34 @@ bool shell_backend::redirect_symbol(const std::string& _r) const {
 bool shell_backend::background_symbol(const std::string& _r) const {
     return _r == "&";
 }
-const std::string shell_backend::expand_word(const std::string& _s) const {
-    return _s;
+bool shell_backend::compile_word(std::string& _s) const {
+    // supposed that %_s meets grammer rule
+    for (size_t _i = 0; _i < _s.size(); ++_i) {
+        const auto _c = _s[_i];
+        if (_c == '\\') {
+            _s.erase(_s.cbegin() + _i);
+        }
+        else if (_c == '\'') {
+            _s.erase(_s.cbegin() + _i);
+            while (_i != _s.size() && _s[_i] != '\'') ++_i;
+            if (_i != _s.size()) { // _s[_i] == '\''
+                _s.erase(_s.cbegin() + _i);
+            }
+        }
+        // else if (_c == '\"') {}
+        // else if (_c == '`') {}
+        else if (_c == '$') {
+            // expand env variable
+            const size_t _l = env_variable_length(_s, _i + 1);
+            if (_l == 0) continue;
+            const std::string _ev = env_variable(_s.substr(_i + 1, _l));
+            if (_ev.empty()) continue;
+            _s.erase(_s.cbegin() + _i, _s.cbegin() + _i + 1 + _l);
+            _s.insert(_i, _ev);
+            _i += _ev.size();
+        }
+    }
+    return true;
 }
 
 
@@ -717,6 +768,9 @@ void shell_backend::parse_tab(const std::string& _line) {
             // else if (_c == '`') {}
             else if (_c == ' ') {
                 _word_2bc.clear(); _word2bc_type = tab_type::file; break;
+            }
+            else if (_c == '$') {
+                _word_2bc.clear(); _word2bc_type = tab_type::env;
             }
             else {
                 size_t _l = _tab_symbol_dict.longest_match(_line.cbegin() + _i, _line.cend());
@@ -763,8 +817,8 @@ std::string shell_backend::build_file_tab_next(const std::string& _incompleted_p
     fetch_file_dict(_path);
     return _file_dict.next(_final_part);
 }
-std::string shell_backend::build_env_tab_next(const std::string&) {
-    return "";
+std::string shell_backend::build_env_tab_next(const std::string& _s) {
+    return _env_dict.next(_s);
 }
 std::vector<std::string> shell_backend::build_program_tab_list(const std::string&) {
     return {};
@@ -787,8 +841,8 @@ std::vector<std::string> shell_backend::build_file_tab_list(const std::string& _
     fetch_file_dict(_path);
     return _file_dict.tab(_final_part);
 }
-std::vector<std::string> shell_backend::build_env_tab_list(const std::string&) {
-    return {};
+std::vector<std::string> shell_backend::build_env_tab_list(const std::string& _s) {
+    return _env_dict.tab(_s);
 }
 void shell_backend::fetch_program_dict() {}
 void shell_backend::fetch_file_dict(const std::filesystem::path& _path) {
@@ -804,7 +858,15 @@ void shell_backend::fetch_file_dict(const std::filesystem::path& _path) {
         _file_dict.add(_file_name);
     }
 }
-void shell_backend::fetch_env_dict() {}
+void shell_backend::fetch_env_dict() { // just init
+    _env_dict.clear();
+    for (const auto& [_k, _v] : _preseted_env_map) {
+        _env_dict.add(_k);
+    }
+    for (const auto& [_k, _v] : _customed_env_map) {
+        _env_dict.add(_k);
+    }
+}
 void shell_backend::fetch_cwd_dict() {
     _cwd_dict.clear();
     std::filesystem::directory_entry _entry(_cwd);
@@ -820,8 +882,39 @@ void shell_backend::fetch_cwd_dict() {
 }
 
 
-const std::string shell_backend::expand_env_variable(const std::string& _s) const {
-    return _s;
+void shell_backend::init_env_variable_map() {
+    _preseted_env_map.clear(); _customed_env_map.clear();
+    for (size_t _i = 0; environ[_i] != nullptr; ++_i) {
+        const std::string _s = environ[_i];
+        size_t _j = _s.find_first_of('=');
+        _preseted_env_map[_s.substr(0, _j)] = _s.substr(_j + 1);
+    }
+    // initialize %_customed_env_map
+}
+void shell_backend::add_env_variable(const std::string& _k, const std::string& _v) {
+    _customed_env_map[_k] = _v;
+    _env_dict.add(_k);
+}
+void shell_backend::del_env_variable(const std::string& _k) {
+    _customed_env_map.erase(_k);
+    _env_dict.del(_k);
+}
+size_t shell_backend::env_variable_length(const std::string& _s, size_t _i) const {
+    for (size_t _j = _i; _j < _s.size(); ++_j) {
+        if (_s[_j] == ' ') {
+            return _j - _i;
+        }
+    }
+    return _s.size() - _i;
+}
+const std::string& shell_backend::env_variable(const std::string& _k) const {
+    if (_customed_env_map.contains(_k)) {
+        return _customed_env_map.at(_k);
+    }
+    if (_preseted_env_map.contains(_k)) {
+        return _preseted_env_map.at(_k);
+    }
+    return _empty_string;
 }
 
 
