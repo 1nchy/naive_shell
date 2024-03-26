@@ -78,7 +78,7 @@ private: // built-in instruction
         {"jobs", {&shell_backend::_M_jobs}}, {"kill", {&shell_backend::_M_kill, 2, 2}},
         {"sleep", {&shell_backend::_M_sleep, 2, 2}},
         {"echo", {&shell_backend::_M_echo, 1, 0}},
-        {"setenv", {&shell_backend::_M_setenv, 3, 3}},
+        {"setenv", {&shell_backend::_M_setenv, 2, 3}},
         {"unsetenv", {&shell_backend::_M_unsetenv, 2, 2}},
     };
 private: // command parsing
@@ -143,7 +143,7 @@ private: // environment variables
     void add_env_variable(const std::string&, const std::string&);
     void del_env_variable(const std::string&);
     size_t env_variable_length(const std::string&, size_t) const;
-    const std::string& env_variable(const std::string&) const;
+    std::pair<bool, const std::string&> env_variable(const std::string&) const;
 private: // history
     void load_history();
     std::vector<std::string> _history;

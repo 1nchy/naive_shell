@@ -662,7 +662,12 @@ void shell_backend::_M_echo(const std::vector<std::string>& _args) {
 }
 void shell_backend::_M_setenv(const std::vector<std::string>& _args) {
     // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
-    add_env_variable(_args[1], _args[2]);
+    if (_args.size() == 2) {
+        add_env_variable(_args[1], "");
+    }
+    else {
+        add_env_variable(_args[1], _args[2]);
+    }
 }
 void shell_backend::_M_unsetenv(const std::vector<std::string>& _args) {
     // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
@@ -717,11 +722,11 @@ bool shell_backend::compile_word(std::string& _s) const {
             // expand env variable
             const size_t _l = env_variable_length(_s, _i + 1);
             if (_l == 0) continue;
-            const std::string _ev = env_variable(_s.substr(_i + 1, _l));
-            if (_ev.empty()) continue;
+            const auto& _ev = env_variable(_s.substr(_i + 1, _l));
+            if (!_ev.first) continue;
             _s.erase(_s.cbegin() + _i, _s.cbegin() + _i + 1 + _l);
-            _s.insert(_i, _ev);
-            _i += _ev.size();
+            _s.insert(_i, _ev.second);
+            _i += _ev.second.size();
         }
     }
     return true;
@@ -907,14 +912,14 @@ size_t shell_backend::env_variable_length(const std::string& _s, size_t _i) cons
     }
     return _s.size() - _i;
 }
-const std::string& shell_backend::env_variable(const std::string& _k) const {
+std::pair<bool, const std::string&> shell_backend::env_variable(const std::string& _k) const {
     if (_customed_env_map.contains(_k)) {
-        return _customed_env_map.at(_k);
+        return {true, _customed_env_map.at(_k)};
     }
     if (_preseted_env_map.contains(_k)) {
-        return _preseted_env_map.at(_k);
+        return {true, _preseted_env_map.at(_k)};
     }
-    return _empty_string;
+    return {false, _empty_string};
 }
 
 
