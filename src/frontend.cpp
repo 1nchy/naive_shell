@@ -335,6 +335,7 @@ void shell_frontend::switch_tab_list() {
             break;
         }
     }
+    _tab_list_signature = front_signature();
 }
 size_t shell_frontend::front_signature() const {
     size_t _seed = _front.size() * _front.size();
