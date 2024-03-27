@@ -200,12 +200,11 @@ const std::string shell_backend::build_information() {
     std::string _info;
     _info.push_back('[');
     _info.append(_cwd.filename());
-    size_t _fg_cnt = 0; size_t _bg_cnt = 0;
+    size_t _bg_cnt = 0;
     for (const auto& [_p, _j] : _proc_map) {
-        if (_j.foreground()) ++_fg_cnt;
-        else ++_bg_cnt;
+        if (_j.background()) ++_bg_cnt;
     }
-    _info.append(std::string(" (") + std::to_string(_fg_cnt) + "," + std::to_string(_bg_cnt) + ")");
+    _info.append(std::string(" (") + std::to_string(_bg_cnt) + ")");
     _info.push_back(']');
     return _info;
 }
