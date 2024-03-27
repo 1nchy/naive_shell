@@ -53,7 +53,7 @@ bool signal_stack::restore(unsigned _sig) {
     return true;
 }
 bool signal_stack::reset(unsigned _sig) {
-    if (!_data.contains(_sig) || _data[_sig].size() <= 1) {
+    if (empty(_sig)) {
         return true;
     }
     const int _r = sigaction(_sig, &_data[_sig].front(), nullptr);

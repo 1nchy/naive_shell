@@ -33,7 +33,7 @@ public:
     bool restore(unsigned);
     // set initial handler
     bool reset(unsigned);
-    // clear all signal handler in stack
+    // clear all handler of certain signal in stack
     bool clear(unsigned);
 private:
 /**
