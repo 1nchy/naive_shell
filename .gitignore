@@ -11,6 +11,9 @@
 !/third/*
 /third/lib/
 !/third/*/*
+!/doc
+!/doc/*
+!/doc/third/*
 
 !main.cpp
 !makefile
