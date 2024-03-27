@@ -49,7 +49,7 @@ static void shell_sigttou_handler(int _sig) {
 
 shell_backend::shell_backend(int _in, int _out, int _err)
 : backend_interface(_in, _out, _err) {
-    output::set_output_level(output::warn);
+    output::set_output_level(output::debug);
     _instance_pointer = this;
 
     _home_dir = std::filesystem::path(getenv("HOME"));
@@ -76,7 +76,7 @@ shell_backend& shell_backend::singleton(int _in, int _out, int _err) {
     return _instance;
 }
 shell_backend::~shell_backend() {
-
+    kill_process();
 }
 int shell_backend::parse(const std::string& _line) {
     // if (_line.empty()) return 0;
@@ -471,8 +471,8 @@ void shell_backend::sigtstp_handler(int) {
 void shell_backend::sigint_handler(int) {
     for (const auto& [_p, _j] : this->_proc_map) {
         if (_j.foreground()) {
-            output_debug("send SIGSTOP to %d\n", _j.pid());
-            ::kill(-_j.pgid(), SIGSTOP);
+            output_debug("send SIGINT to %d\n", _j.pid());
+            ::kill(-_j.pgid(), SIGINT);
         }
     }
 }
@@ -543,6 +543,25 @@ pid_t shell_backend::remove_background_job(size_t _i) {
     }
     return _pid;
 }
+void shell_backend::kill_process(pid_t _pid) {
+    int _status;
+    if (_pid == 0) {}
+    else if (_pid < 0) {
+        for (const auto& [_p, _j] : _proc_map) {
+            output_debug("send SIGKILL to %d from destructor\n", _j.pid());
+            ::kill(-_j.pid(), SIGKILL);
+        }
+        while ((_pid = waitpid(-1, &_status, WNOHANG)) > 0) {
+            waitpid_handler(_pid, _status);
+        }
+    }
+    else {
+        output_debug("send SIGKILL to %d from destructor\n", _pid);
+        ::kill(-_pid, SIGKILL);
+        while ((_pid = waitpid(_pid, &_status, WSTOPPED)) == -1 && errno == EINTR);
+        waitpid_handler(_pid, _status);
+    }
+}
 
 
 bool shell_backend::builtin_instruction_check(const std::string& _cmd, const std::vector<std::string>& _args) {
@@ -595,7 +614,7 @@ void shell_backend::_M_history(const std::vector<std::string>& _args) {
 }
 void shell_backend::_M_quit(const std::vector<std::string>& _args) {
     // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
-    this->~shell_backend();
+    kill_process();
     exit(EXIT_FAILURE);
 }
 void shell_backend::_M_bg(const std::vector<std::string>& _args) {
@@ -649,10 +668,8 @@ void shell_backend::_M_kill(const std::vector<std::string>& _args) {
     }
     pid_t _pid = _bg_map[_i];
     auto& _j = _proc_map.at(_pid);
-    ::kill(-_j.pgid(), SIGKILL);
-    int _status;
-    while (waitpid(_pid, &_status, WSTOPPED) == -1 && errno == EINTR);
-    waitpid_handler(_pid, _status);
+    assert(_j.pgid() > 0);
+    kill_process(_j.pgid());
 }
 void shell_backend::_M_sleep(const std::vector<std::string>& _args) {
     // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);

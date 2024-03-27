@@ -49,6 +49,7 @@ private: // process controller
     void waitpid_handler(pid_t _pid, int _status);
     size_t append_background_job(pid_t _pid);
     pid_t remove_background_job(size_t _i);
+    void kill_process(pid_t _pid = -1);
 private: // built-in instruction
     // typedef void(shell_backend::*builtin_instruction_handler)(void);
     using builtin_instruction_handler = void(shell_backend::*)(const std::vector<std::string>&);
