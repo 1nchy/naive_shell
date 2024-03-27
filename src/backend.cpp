@@ -79,11 +79,18 @@ shell_backend::~shell_backend() {
 
 }
 int shell_backend::parse(const std::string& _line) {
-    if (_line.empty()) return 0;
+    // if (_line.empty()) return 0;
     size_t _i = 0;
     while (_parse_status != parse_status::eof) {
         // handle parsing status
-    if (_parse_status == parse_status::backslash) {}
+    if (_parse_status == parse_status::backslash) {
+        if (_i == _line.size()) {
+            _parse_status = parse_status::backslash;
+            return 1;
+        }
+        _parse_status = parse_status::parsing;
+        _word.push_back(_line[_i]); ++_i;
+    }
     else if (_parse_status == parse_status::single_quote) {
         while (true) {
             if (_i == _line.size() || _line[_i] == '\n' || _line[_i] == '\r') {
