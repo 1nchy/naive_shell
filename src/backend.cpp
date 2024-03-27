@@ -433,7 +433,7 @@ void shell_backend::execute_command(const command& _cmd) {
     return;
 }
 void shell_backend::execute_instruction(const std::vector<std::string>& _args) {
-    if (_builtin_instruction.contains(_args[0].c_str())) { // for built-in instruction
+    if (_builtin_instruction_map.contains(_args[0].c_str())) { // for built-in instruction
         execute_builtin_instruction(_args);
         return;
     }
@@ -452,7 +452,7 @@ void shell_backend::execute_builtin_instruction(const std::vector<std::string>& 
         printf("wrong parameter count\n");
         return;
     }
-    (this->*_builtin_instruction.at(_args[0])._handler)(_args);
+    (this->*_builtin_instruction_map.at(_args[0])._handler)(_args);
 }
 
 
@@ -569,7 +569,7 @@ void shell_backend::kill_process(pid_t _pid) {
 
 bool shell_backend::builtin_instruction_check(const std::string& _cmd, const std::vector<std::string>& _args) {
     if (!is_builtin_instruction(_cmd)) return false;
-    const auto& _details = _builtin_instruction.at(_cmd);
+    const auto& _details = _builtin_instruction_map.at(_cmd);
     if (_args.size() < _details._min_args) {
         return false;
     }
@@ -582,7 +582,7 @@ bool shell_backend::builtin_instruction_check(const std::string& _cmd, const std
     return true;
 }
 bool shell_backend::is_builtin_instruction(const std::string& _cmd) const {
-    return _builtin_instruction.contains(_cmd);
+    return _builtin_instruction_map.contains(_cmd);
 }
 void shell_backend::_M_pwd(const std::vector<std::string>& _args) {
     // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
@@ -898,7 +898,7 @@ void shell_backend::fetch_program_dict() {
         if (_r != _env_path.size()) ++_r;
         _l = _r;
     }
-    for (const auto& [_k, _v] : _builtin_instruction) {
+    for (const auto& [_k, _v] : _builtin_instruction_map) {
         _program_dict.add(_k);
     }
 }

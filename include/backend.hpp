@@ -53,7 +53,7 @@ private: // process controller
 private: // built-in instruction
     // typedef void(shell_backend::*builtin_instruction_handler)(void);
     using builtin_instruction_handler = void(shell_backend::*)(const std::vector<std::string>&);
-    struct builtin_instruction {
+    struct builtin_instruction_detail {
         builtin_instruction_handler _handler;
         size_t _min_args = 1;
         size_t _max_args = 1;
@@ -72,7 +72,7 @@ private: // built-in instruction
     void _M_echo(const std::vector<std::string>&);
     void _M_setenv(const std::vector<std::string>&);
     void _M_unsetenv(const std::vector<std::string>&);
-    const std::unordered_map<std::string, builtin_instruction> _builtin_instruction = {
+    const std::unordered_map<std::string, builtin_instruction_detail> _builtin_instruction_map = {
         {"pwd", {&shell_backend::_M_pwd}}, {"cd", {&shell_backend::_M_cd, 1, 2}},
         {"history", {&shell_backend::_M_history}}, {"quit", {&shell_backend::_M_quit}},
         {"bg", {&shell_backend::_M_bg, 2, 2}}, {"fg", {&shell_backend::_M_fg, 2, 2}},
