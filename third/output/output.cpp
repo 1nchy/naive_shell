@@ -18,7 +18,7 @@ void output_func(output_level _l, const char* _file, int _line, const char* _fmt
     va_list _args;
     va_start(_args, _fmt);
     printf("[%s](%d) ", _file, _line);
-    printf(_fmt, _args);
+    vprintf(_fmt, _args);
     va_end(_args);
 }
 }
