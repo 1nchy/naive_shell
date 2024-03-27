@@ -220,14 +220,17 @@ const std::string shell_backend::build_tab_next(const std::string& _line) {
     trie_tree _tab_next_dict;
     if (tab_type_check(file, _word2bc_type)) {
         const auto& _file_tab_next = build_file_tab_next(_word_2bc);
+        if (_file_tab_next.empty()) return "";
         _tab_next_dict.add(_file_tab_next);
     }
     if (tab_type_check(program, _word2bc_type)) {
         const auto& _program_tab_next = build_program_tab_next(_word_2bc);
+        if (_program_tab_next.empty()) return "";
         _tab_next_dict.add(_program_tab_next);
     }
     if (tab_type_check(env, _word2bc_type)) {
         const auto& _env_tab_next = build_env_tab_next(_word_2bc);
+        if (_env_tab_next.empty()) return "";
         _tab_next_dict.add(_env_tab_next);
     }
     return _tab_next_dict.next("");
