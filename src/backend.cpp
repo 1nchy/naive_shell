@@ -49,7 +49,7 @@ static void shell_sigttou_handler(int _sig) {
 
 shell_backend::shell_backend(int _in, int _out, int _err)
 : backend_interface(_in, _out, _err) {
-    output::set_output_level(output::debug);
+    output::set_output_level(output::fatal);
     _instance_pointer = this;
 
     _home_dir = std::filesystem::path(getenv("HOME"));
