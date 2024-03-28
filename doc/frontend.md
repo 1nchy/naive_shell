@@ -67,6 +67,6 @@ E --false--> F["build_tab_list()"] -->G["switch_tab_list()"]
 E --true--> G
 B --true--> E
 D --false--> H["write(_tab_next)"]
-H --> I("cycle")
-G --> I
+G --> I("cycle")
+I --> G
 ~~~
