@@ -20,7 +20,8 @@ shell 前端主要负责命令字符串的读入，终端界面的操作与展�
 |:-:|:-:|
 |show_information|展示自定义的信息|
 |show_prompt|显示输入提示|
-|run|循环等待输入并执行|
+|activate|循环等待输入并执行|
+|deactivate|清楚所有任务并关闭|
 
 ## 实现
 

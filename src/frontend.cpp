@@ -39,6 +39,7 @@ void shell_frontend::activate() {
 }
 void shell_frontend::deactivate() {
     _backend->kill_all_process();
+    _backend = nullptr;
 }
 bool shell_frontend::wait() {
     show_information(_backend->build_information());

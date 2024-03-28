@@ -27,6 +27,7 @@ shell 后端主要负责命令的解析与执行，任务的调度，历史记�
 |prev_history|返回上一个历史命令|
 |next_history|返回下一个历史命令|
 |append_history|追加命令记录|
+|kill_all_process|杀死所有任务|
 
 ## 实现
 
