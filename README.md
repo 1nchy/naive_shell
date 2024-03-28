@@ -1,4 +1,4 @@
-# A NATIVE SHELL
+# A NAIVE SHELL
 
 ## 简介
 
