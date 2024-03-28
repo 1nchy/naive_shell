@@ -58,25 +58,6 @@ size_t front_signature() const; // 生成命令签名
 
 下面是 tab 功能的流程图，由于后端的补全/建议功能较复杂，耗时较多，因此前端采用了签名的方法，尽量减少后端功能的调用。
 
-~~~flow
-start=>start: press tab
-has_tab_next=>condition: has_tab_text()
-has_tab_list=>condition: has_tab_list()
-tab_next_empty=>condition: _tab_next.empty()
-write_tab_next=>operation: write(_tab_next)
-build_tab_next=>operation: build_tab_next()
-build_tab_list=>operation: build_tab_list()
-switch_tab_list=>operation: switch_tab_list()
-end=>end: cycle
-start->has_tab_next
-has_tab_next(no)->build_tab_next->tab_next_empty
-has_tab_next(yes)->has_tab_list
-tab_next_empty(yes,left)->has_tab_list
-tab_next_empty(no,bottom)->write_tab_next->end
-has_tab_list(yes)->switch_tab_list->end
-has_tab_list(no,left)->build_tab_list->switch_tab_list
-~~~
-
 ~~~mermaid
 graph LR
 A("press tab") --> B{"has_tab_next()"}
