@@ -16,9 +16,6 @@ extern char** environ;
 
 namespace asp {
 
-// #define BUILT_IN_INSTRUCTION_ARGS_CHECK(_args) \
-// if (!builtin_instruction_check(__func__, _args)) return;
-
 static const std::string _empty_string;
 static signal_stack _signal_stack;
 static shell_backend* _instance_pointer = nullptr;
@@ -451,10 +448,10 @@ int shell_backend::execute_instruction(const std::vector<std::string>& _args) {
     }
 }
 int shell_backend::execute_builtin_instruction(const std::vector<std::string>& _args) {
-    if (!builtin_instruction_check(_args[0], _args)) {
-        printf("wrong parameter count\n");
-        return -1;
-    }
+    const int _builtin_check_result = builtin_instruction_check(_args[0], _args);
+    if (_builtin_check_result == 1) { printf("too many arguments\n"); return -1; }
+    else if (_builtin_check_result == -1) { printf("not enough arguments\n"); return -1; }
+    else if (_builtin_check_result != 0) { printf("arguments error\n"); return -1; }
     (this->*_builtin_instruction_map.at(_args[0])._handler)(_args);
     return 0;
 }
@@ -571,29 +568,27 @@ void shell_backend::kill_process(pid_t _pid) {
 }
 
 
-bool shell_backend::builtin_instruction_check(const std::string& _cmd, const std::vector<std::string>& _args) {
-    if (!is_builtin_instruction(_cmd)) return false;
+int shell_backend::builtin_instruction_check(const std::string& _cmd, const std::vector<std::string>& _args) {
+    if (!is_builtin_instruction(_cmd)) return -2;
     const auto& _details = _builtin_instruction_map.at(_cmd);
     if (_args.size() < _details._min_args) {
-        return false;
+        return -1;
     }
     if (_details._max_args != 0 && _args.size() > _details._max_args) {
-        return false;
+        return 1;
     }
     if (_args[0] != _cmd) {
-        return false;
+        return 2;
     }
-    return true;
+    return 0;
 }
 bool shell_backend::is_builtin_instruction(const std::string& _cmd) const {
     return _builtin_instruction_map.contains(_cmd);
 }
 void shell_backend::_M_pwd(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     printf("%s\n", _cwd.c_str());
 }
 void shell_backend::_M_cd(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     if (_args.size() == 1) { // cd
         chdir(_home_dir.c_str());
     }
@@ -614,18 +609,15 @@ void shell_backend::_M_cd(const std::vector<std::string>& _args) {
     _cwd = std::filesystem::current_path();
 }
 void shell_backend::_M_history(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     for (const auto& _s : _history) {
         printf("%s\n", _s.c_str());
     }
 }
 void shell_backend::_M_quit(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     kill_process();
     exit(EXIT_FAILURE);
 }
 void shell_backend::_M_bg(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const size_t _s = std::stoi(_args[1]);
     if (!_bg_map.contains(_s)) {
         printf("wrong task id\n");
@@ -636,7 +628,6 @@ void shell_backend::_M_bg(const std::vector<std::string>& _args) {
     ::kill(-_j.pgid(), SIGCONT);
 }
 void shell_backend::_M_fg(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const size_t _s = std::stoi(_args[1]);
     if (!_bg_map.contains(_s)) {
         printf("wrong task id\n");
@@ -657,7 +648,6 @@ void shell_backend::_M_fg(const std::vector<std::string>& _args) {
     waitpid_handler(_pid, _status);
 }
 void shell_backend::_M_jobs(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const std::vector<std::string> _states = {"Name", "State"};
     for (const auto& [_s, _p] : _bg_map) {
         const auto _vs = proc::get_status(_p, _states);
@@ -667,7 +657,6 @@ void shell_backend::_M_jobs(const std::vector<std::string>& _args) {
     }
 }
 void shell_backend::_M_kill(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const size_t _i = std::stoi(_args[1]);
     if (!_bg_map.contains(_i)) {
         printf("wrong task id\n");
@@ -679,12 +668,10 @@ void shell_backend::_M_kill(const std::vector<std::string>& _args) {
     kill_process(_j.pgid());
 }
 void shell_backend::_M_sleep(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     const auto _x = std::stoi(_args[1]);
     std::this_thread::sleep_for(std::chrono::seconds(_x));
 }
 void shell_backend::_M_echo(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     for (size_t _i = 1; _i < _args.size();) {
         printf("%s", _args[_i].c_str());
         ++_i;
@@ -693,7 +680,6 @@ void shell_backend::_M_echo(const std::vector<std::string>& _args) {
     printf("\n");
 }
 void shell_backend::_M_setenv(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     if (_args.size() == 2) {
         add_env_variable(_args[1], "");
     }
@@ -702,7 +688,6 @@ void shell_backend::_M_setenv(const std::vector<std::string>& _args) {
     }
 }
 void shell_backend::_M_unsetenv(const std::vector<std::string>& _args) {
-    // BUILT_IN_INSTRUCTION_ARGS_CHECK(_args);
     for (size_t _i = 1; _i < _args.size(); ++_i) {
         del_env_variable(_args[_i]);
     }

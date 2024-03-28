@@ -59,7 +59,7 @@ private: // built-in instruction
         size_t _min_args = 1;
         size_t _max_args = 1;
     };
-    bool builtin_instruction_check(const std::string&, const std::vector<std::string>&);
+    int builtin_instruction_check(const std::string&, const std::vector<std::string>&);
     bool is_builtin_instruction(const std::string&) const;
     void _M_pwd(const std::vector<std::string>&);
     void _M_cd(const std::vector<std::string>&);
