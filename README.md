@@ -31,7 +31,7 @@ $ ./shell
 
 ~~~shell
 [directory (0)]> cat&
-[1](22719) cat
+[1](22719)      cat
 [directory (1)]> cat | cat | cat |
 > grep a
 ^Z(22885)       grep stopped
