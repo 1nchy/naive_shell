@@ -425,7 +425,7 @@ void shell_backend::execute_command(const command& _cmd) {
         waitpid_handler(_pid, _status);
     }
     else {
-        printf("[%ld](%d) %s\n", _task_serial_i, _pid, _main_ins.front().c_str());
+        printf("[%ld](%d) \t%s\n", _task_serial_i, _pid, _main_ins.front().c_str());
         _j.set_serial(_task_serial_i);
         _proc_map.insert({_pid, _j});
         append_background_job(_pid);
