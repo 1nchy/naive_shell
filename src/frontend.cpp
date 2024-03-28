@@ -17,9 +17,7 @@ const char* shell_frontend::color_mode[] = {
 };
 static_assert(sizeof(shell_frontend::color_mode) / sizeof(shell_frontend::color_mode[0]) == shell_frontend::ansi_color::color_count);
 
-shell_frontend::shell_frontend(int _in, int _out, int _err) {
-    _backend = &shell_backend::singleton(_in, _out, _err);
-}
+shell_frontend::shell_frontend(int _in, int _out, int _err) : frontend_interface(_in, _out, _err) {}
 shell_frontend& shell_frontend::singleton(int _in, int _out, int _err) {
     static shell_frontend _instance(_in, _out, _err);
     return _instance;
@@ -31,12 +29,16 @@ void shell_frontend::show_information(const std::string& _s) {
 void shell_frontend::show_prompt() {
     _M_write(color_mode[blue] + _prompt + color_mode[0]);
 }
-void shell_frontend::run() {
+void shell_frontend::activate() {
+    _backend = &shell_backend::singleton(_in, _out, _err);
     while (true) {
         if (!wait()) break;
         if (!_backend->compile()) continue;
         _backend->execute();
     }
+}
+void shell_frontend::deactivate() {
+    _backend->kill_all_process();
 }
 bool shell_frontend::wait() {
     show_information(_backend->build_information());

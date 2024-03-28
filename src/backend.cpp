@@ -50,6 +50,7 @@ static void shell_sigttou_handler(int _sig) {
 shell_backend::shell_backend(int _in, int _out, int _err)
 : backend_interface(_in, _out, _err) {
     output::set_output_level(output::fatal);
+    output_debug("shell_backend::constructor\n");
     _instance_pointer = this;
 
     _home_dir = std::filesystem::path(getenv("HOME"));
@@ -76,7 +77,7 @@ shell_backend& shell_backend::singleton(int _in, int _out, int _err) {
     return _instance;
 }
 shell_backend::~shell_backend() {
-    kill_process();
+    output_debug("shell_backend::destructor\n");
 }
 int shell_backend::parse(const std::string& _line) {
     // if (_line.empty()) return 0;
@@ -275,9 +276,12 @@ void shell_backend::append_history(const std::string& _s) {
     _history.push_back(_s);
     _history_iterator = _history.cend();
 }
+void shell_backend::kill_all_process() {
+    kill_process();
+}
 
 
-void shell_backend::execute_command(const command& _cmd) {
+int shell_backend::execute_command(const command& _cmd) {
     const auto& _main_ins = _cmd._instructions.back();
 
     if (_cmd.size() == 1 && !_cmd._background && is_builtin_instruction(_main_ins.front())) {
@@ -301,7 +305,7 @@ void shell_backend::execute_command(const command& _cmd) {
                 dup2(fileno(_output_file), _out);
             }
         }
-        execute_builtin_instruction(_main_ins);
+        const auto _r = execute_builtin_instruction(_main_ins);
         // re-redirect
         if (_input_file != nullptr) {
             fclose(_input_file);
@@ -311,7 +315,7 @@ void shell_backend::execute_command(const command& _cmd) {
             fclose(_output_file);
             dup2(_old_out, _in);
         }
-        return;
+        return _r;
     }
 
     _signal_stack.reset(SIGCHLD);
@@ -360,7 +364,7 @@ void shell_backend::execute_command(const command& _cmd) {
 
                 execute_instruction(_ins);
                 // if (_input_file != nullptr) fclose(_input_file);
-                exit(EXIT_SUCCESS);
+                exit(EXIT_FAILURE);
             }
             setpgid(_pid, _main_pid);
             // close out fd
@@ -404,7 +408,7 @@ void shell_backend::execute_command(const command& _cmd) {
         }
 
         execute_instruction(_main_ins);
-        exit(EXIT_SUCCESS);
+        exit(EXIT_FAILURE);
     }
     
     _signal_stack.restore(SIGCHLD);
@@ -430,12 +434,11 @@ void shell_backend::execute_command(const command& _cmd) {
         _proc_map.insert({_pid, _j});
         append_background_job(_pid);
     }
-    return;
+    return 0;
 }
-void shell_backend::execute_instruction(const std::vector<std::string>& _args) {
+int shell_backend::execute_instruction(const std::vector<std::string>& _args) {
     if (_builtin_instruction_map.contains(_args[0].c_str())) { // for built-in instruction
-        execute_builtin_instruction(_args);
-        return;
+        return execute_builtin_instruction(_args);
     }
     else { // for other instruction
         std::vector<const char*> _cmd_args;
@@ -444,15 +447,16 @@ void shell_backend::execute_instruction(const std::vector<std::string>& _args) {
         }
         _cmd_args.emplace_back(nullptr);
         execvp(_args[0].c_str(), const_cast<char* const*>(_cmd_args.data()));
-        return;
+        return -1;
     }
 }
-void shell_backend::execute_builtin_instruction(const std::vector<std::string>& _args) {
+int shell_backend::execute_builtin_instruction(const std::vector<std::string>& _args) {
     if (!builtin_instruction_check(_args[0], _args)) {
         printf("wrong parameter count\n");
-        return;
+        return -1;
     }
     (this->*_builtin_instruction_map.at(_args[0])._handler)(_args);
+    return 0;
 }
 
 
@@ -551,7 +555,7 @@ void shell_backend::kill_process(pid_t _pid) {
     if (_pid == 0) {}
     else if (_pid < 0) {
         for (const auto& [_p, _j] : _proc_map) {
-            output_debug("send SIGKILL to %d from destructor\n", _j.pid());
+            output_debug("send SIGKILL to %d\n", _j.pid());
             ::kill(-_j.pid(), SIGKILL);
         }
         while ((_pid = waitpid(-1, &_status, WNOHANG)) > 0) {
@@ -559,7 +563,7 @@ void shell_backend::kill_process(pid_t _pid) {
         }
     }
     else {
-        output_debug("send SIGKILL to %d from destructor\n", _pid);
+        output_debug("send SIGKILL to %d\n", _pid);
         ::kill(-_pid, SIGKILL);
         while ((_pid = waitpid(_pid, &_status, WSTOPPED)) == -1 && errno == EINTR);
         waitpid_handler(_pid, _status);

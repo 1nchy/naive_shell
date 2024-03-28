@@ -21,7 +21,8 @@ public:
     virtual ~frontend_interface() {}
     virtual void show_information(const std::string& _s) = 0;
     virtual void show_prompt() = 0;
-    virtual void run() = 0;
+    virtual void activate() = 0;
+    virtual void deactivate() = 0;
 protected:
     virtual bool wait() = 0; // process one command sequence
 protected:

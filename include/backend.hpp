@@ -33,10 +33,11 @@ public:
     const std::string& prev_history() override;
     const std::string& next_history() override;
     void append_history(const std::string&) override;
+    void kill_all_process() override;
 private:
-    void execute_command(const command&) override;
-    void execute_instruction(const std::vector<std::string>&) override;
-    void execute_builtin_instruction(const std::vector<std::string>&) override;
+    int execute_command(const command&) override;
+    int execute_instruction(const std::vector<std::string>&) override;
+    int execute_builtin_instruction(const std::vector<std::string>&) override;
 public: // signal
     void sigchld_handler(int);
     void sigtstp_handler(int);

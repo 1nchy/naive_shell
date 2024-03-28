@@ -18,7 +18,8 @@ public:
     bool eof() const { return _end_of_file; }
     void show_information(const std::string& _s) override;
     void show_prompt() override;
-    void run() override;
+    void activate() override;
+    void deactivate() override;
 private:
     bool wait() override;
     bool read_line();
