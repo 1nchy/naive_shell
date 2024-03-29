@@ -25,6 +25,7 @@ LIB_TARGET=$(LIB_DIR)/$(LIB_PREFIX)$(LIB_NAME)$(LIB_SUFFIX)
 all:$(LIB_TARGET)
 
 $(LIB_TARGET):$(OBJS)
+	@mkdir -p $(LIB_DIR)
 	$(AR) rcs $@ $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.$(EXTENSION)
