@@ -34,7 +34,7 @@ THIRD_LIB_FLAG=$(foreach n, $(THIRD_LIB_NAME), $(STATIC_LIB_PREFIX)$(n))
 
 
 ## compile target
-.PHONY: all $(THIRD_LIB)
+.PHONY: all $(THIRD_LIB) clean clean_lib
 
 all:$(OBJS) $(THIRD_LIB)
 	$(CC) $(CFLAGS) -o $(PROGRAM) $(OBJS) $(LIB_FLAG) $(THIRD_LIB_FLAG)
@@ -42,16 +42,10 @@ all:$(OBJS) $(THIRD_LIB)
 $(THIRD_LIB):
 	@make -C $@
 
-# $(DEPS_DIR)/%.d: $(SRC_DIR)/%.$(EXTENSION)
-# 	@mkdir -p $(DEPS_DIR)
-# 	$(CC) $(CFLAGS) $(INCLUDE_FLAG) -MM $^ | sed 1's,^,$@ $(OBJ_DIR)/,' > $@
-
-# include $(DEPS)
-
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.$(EXTENSION)
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) $(INCLUDE_FLAG) -o $@ -c $<
 
 clean:
 	@rm -rf $(OBJ_DIR)
-	@rm -rf $(DEPS_DIR)
+	$(foreach n, $(THIRD_LIB), make clean -C $(n);)

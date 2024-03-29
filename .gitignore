@@ -10,6 +10,7 @@
 !/third
 !/third/*
 /third/lib/
+/third/obj/
 !/third/*/*
 !/doc
 !/doc/*
