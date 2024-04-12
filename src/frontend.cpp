@@ -265,7 +265,7 @@ void shell_frontend::tab_handler(short) {
     const std::string _line_2bc(_front.cbegin(), _front.cend());
     do {
         if (!has_tab_next()) {
-            const std::string _tab_next = escaping_string(_backend->build_tab_next(_line_2bc));
+            const std::string _tab_next = escape_string(_backend->build_tab_next(_line_2bc));
             if (!_tab_next.empty()) {
                 // insert %_tab_next into _front
                 _M_write(_tab_next);
@@ -305,7 +305,7 @@ void shell_frontend::default_handler(short _c) {
 bool shell_frontend::char_2_escape(char _c) const {
     return _char_2_escape_set.contains(_c);
 }
-std::string shell_frontend::escaping_string(const std::string& _s) const {
+std::string shell_frontend::escape_string(const std::string& _s) const {
     std::string _result = _s;
     for (auto _i = _result.begin(); _i != _result.end(); ++_i) {
         if (char_2_escape(*_i)) {
@@ -332,7 +332,7 @@ void shell_frontend::switch_tab_list() {
         // output
         fill_blank(_prev_tab_word_size + _back.size());
         cursor_move_back(_prev_tab_word_size + _back.size());
-        const auto& _s = escaping_string(_tab_list.at(_tab_index));
+        const auto& _s = escape_string(_tab_list.at(_tab_index));
         _M_write(_s);
         rewrite_back();
         cursor_move_back(_back.size() + _s.size());
