@@ -81,7 +81,7 @@ private: // special character handler void(char)
         {(short)extended_char::ec_tab, &shell_frontend::tab_handler},
         {(short)extended_char::ec_default, &shell_frontend::default_handler},
     };
-    // special character escaping processing
+    // special character escaping processing // todo, these should be implemented in backend
     bool char_2_escape(char) const;
     std::string escape_string(const std::string&) const;
     const std::unordered_set<char> _char_2_escape_set = {
