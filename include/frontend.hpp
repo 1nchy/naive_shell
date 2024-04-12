@@ -4,6 +4,7 @@
 #include "virtual_frontend.hpp"
 
 #include <unordered_map>
+#include <unordered_set>
 
 namespace asp {
 
@@ -79,6 +80,12 @@ private: // special character handler void(char)
         {(short)extended_char::ec_back, &shell_frontend::back_handler},
         {(short)extended_char::ec_tab, &shell_frontend::tab_handler},
         {(short)extended_char::ec_default, &shell_frontend::default_handler},
+    };
+    // special character escaping processing
+    bool char_2_escape(char) const;
+    std::string escaping_string(const std::string&) const;
+    const std::unordered_set<char> _char_2_escape_set = {
+        ' ', '\'', '\"', '\\', '`'
     };
 private: // tab
     bool has_tab_next();
