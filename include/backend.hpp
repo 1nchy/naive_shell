@@ -5,6 +5,7 @@
 
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include "trie_tree/trie_tree.hpp"
 
 #include "command.hpp"
@@ -137,6 +138,14 @@ private: // tab
     void fetch_file_dict(const std::filesystem::path&);
     void fetch_env_dict();
     void fetch_cwd_dict();
+    // special character escaping processing
+    bool _escaping_required = false; // whether escapeing is required
+    bool char_2_escape(char) const;
+    std::string escape_string(const std::string&) const;
+    std::vector<std::string> escape_string(const std::vector<std::string>&) const;
+    const std::unordered_set<char> _char_2_escape_set = {
+        ' ', '\'', '\"', '\\', '`'
+    };
 private: // environment variables
     std::unordered_map<std::string, std::string> _preseted_env_map;
     std::unordered_map<std::string, std::string> _customed_env_map;

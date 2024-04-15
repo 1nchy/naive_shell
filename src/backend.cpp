@@ -231,7 +231,12 @@ const std::string shell_backend::build_tab_next(const std::string& _line) {
         if (_env_tab_next.empty()) return "";
         _tab_next_dict.add(_env_tab_next);
     }
-    return _tab_next_dict.next("");
+    if (_escaping_required) {
+        return escape_string(_tab_next_dict.next(""));
+    }
+    else {
+        return _tab_next_dict.next("");
+    }
 }
 const std::vector<std::string> shell_backend::build_tab_list(const std::string& _line) {
     parse_tab(_line);
@@ -249,7 +254,12 @@ const std::vector<std::string> shell_backend::build_tab_list(const std::string& 
         const auto& _env_tab_list = build_env_tab_list(_word_2bc);
         _tab_list.insert(_tab_list.end(), _env_tab_list.cbegin(), _env_tab_list.cend());
     }
-    return _tab_list;
+    if (_escaping_required) {
+        return escape_string(_tab_list);
+    }
+    else {
+        return _tab_list;
+    }
 }
 const std::string& shell_backend::prev_history() {
     if (_history.empty()) {
@@ -760,7 +770,7 @@ bool shell_backend::env_symbol(const std::string& _r) const {
     return _r == "$";
 }
 void shell_backend::parse_tab(const std::string& _line) {
-    _word_2bc.clear(); _word2bc_type = tab_type::file | tab_type::program;
+    _word_2bc.clear(); _word2bc_type = tab_type::file | tab_type::program; _escaping_required = true;
     if (_line.empty()) {
         _word2bc_type = tab_type::none; return;
     }
@@ -771,7 +781,7 @@ void shell_backend::parse_tab(const std::string& _line) {
         while (_i != _line.size() && _line[_i] == ' ') { ++_i; }
         if (_i == _line.size()) break;
         // process one word in a cycle at least
-        for (; _i != _line.size(); ++_i) {
+        for (; _i < _line.size(); ++_i) {
             const auto& _c = _line[_i];
             if (_c == '\\') {
                 ++_i;
@@ -781,12 +791,13 @@ void shell_backend::parse_tab(const std::string& _line) {
                 _word_2bc.push_back(_line[_i]);
             }
             else if (_c == '\'') {
-                ++_i;
+                ++_i; _escaping_required = false;
                 while (true) {
                     if (_i == _line.size()) {
                         _tab_parse_status = parse_status::eof; break;
                     }
                     if (_line[_i] == '\'') {
+                        _escaping_required = true;
                         ++_i; break;
                     }
                     _word_2bc.push_back(_line[_i]); ++_i;
@@ -917,6 +928,25 @@ void shell_backend::fetch_cwd_dict() {
         else { _cwd_dict.add(_file_name); }
     };
     asp::filesystem::for_each_file(_cwd, _handler);
+}
+bool shell_backend::char_2_escape(char _c) const {
+    return _char_2_escape_set.contains(_c);
+}
+std::string shell_backend::escape_string(const std::string& _s) const {
+    std::string _result = _s;
+    for (auto _i = _result.begin(); _i != _result.end(); ++_i) {
+        if (char_2_escape(*_i)) {
+            _i = _result.insert(_i, '\\'); ++_i;
+        }
+    }
+    return _result;
+}
+std::vector<std::string> shell_backend::escape_string(const std::vector<std::string>& _vs) const {
+    std::vector<std::string> _result(_vs.size());
+    for (size_t _i = 0; _i != _vs.size(); ++_i) {
+        _result[_i] = escape_string(_vs[_i]);
+    }
+    return _result;
 }
 
 
