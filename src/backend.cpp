@@ -782,6 +782,7 @@ bool shell_backend::compile_word(std::string& _s) const {
                             _s.erase(_s.cbegin() + _i, _s.cbegin() + _i + 1 + _l);
                             _s.insert(_i, _ev.second);
                             _i += _ev.second.size();
+                            continue;
                         }
                     }
                 }
@@ -858,6 +859,9 @@ void shell_backend::parse_tab(const std::string& _line) {
                     if (_line[_i] == '\"') {
                         _escaping_required = true;
                         ++_i; break;
+                    }
+                    if (_line[_i] == '$') {
+                        _word_2bc.clear(); _word2bc_type = tab_type::env; ++_i; continue;
                     }
                     _word_2bc.push_back(_line[_i]); ++_i;
                 }
