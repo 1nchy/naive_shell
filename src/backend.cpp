@@ -80,6 +80,7 @@ int shell_backend::parse(const std::string& _line) {
     // if (_line.empty()) return 0;
     size_t _i = 0;
     while (_parse_status != parse_status::eof) {
+        _i = std::min(_line.size(), _i);
         // handle parsing status
     if (_parse_status == parse_status::backslash) {
         if (_i == _line.size()) {
@@ -102,7 +103,19 @@ int shell_backend::parse(const std::string& _line) {
             }
         }
     }
-    // else if (_parse_status == parse_status::double_quotes) {}
+    else if (_parse_status == parse_status::double_quotes) {
+        while (true) {
+            if (_i == _line.size() || _line[_i] == '\n' || _line[_i] == '\r') {
+                _parse_status = parse_status::double_quotes;
+                return 1;
+            }
+            _word.push_back(_line[_i]); ++_i;
+            if (_word.back() == '\"') {
+                _parse_status = parse_status::parsing;
+                break;
+            }
+        }
+    }
     // else if (_parse_status == parse_status::back_quotes) {}
     
         // skip blank between words
@@ -138,7 +151,20 @@ int shell_backend::parse(const std::string& _line) {
                 }
             }
         }
-        // else if (_c == '\"') {}
+        else if (_c == '\"') {
+            _word.push_back(_c); ++_i;
+            while (true) {
+                if (_i == _line.size() || _line[_i] == '\n' || _line[_i] == '\r') {
+                    _parse_status = parse_status::double_quotes;
+                    return 1;
+                }
+                _word.push_back(_line[_i]); ++_i;
+                if (_word.back() == '\"') {
+                    _parse_status = parse_status::parsing;
+                    break;
+                }
+            }
+        }
         // else if (_c == '`') {}
         else if (_c == ' ') {
             _commands.build_word(_word); _word.clear();
@@ -745,7 +771,26 @@ bool shell_backend::compile_word(std::string& _s) const {
                 _s.erase(_s.cbegin() + _i);
             }
         }
-        // else if (_c == '\"') {}
+        else if (_c == '\"') {
+            _s.erase(_s.cbegin() + _i);
+            while (_i != _s.size() && _s[_i] != '\"') {
+                if (_s[_i] == '$') {
+                    const size_t _l = env_variable_length(_s, _i + 1);
+                    if (_l != 0) {
+                        const auto& _ev = env_variable(_s.substr(_i + 1, _l));
+                        if (_ev.first) {
+                            _s.erase(_s.cbegin() + _i, _s.cbegin() + _i + 1 + _l);
+                            _s.insert(_i, _ev.second);
+                            _i += _ev.second.size();
+                        }
+                    }
+                }
+                ++_i;
+            }
+            if (_i != _s.size()) { // _s[_i] == '\"'
+                _s.erase(_s.cbegin() + _i);
+            }
+        }
         // else if (_c == '`') {}
         else if (_c == '$') {
             // expand env variable
@@ -777,6 +822,7 @@ void shell_backend::parse_tab(const std::string& _line) {
     auto _tab_parse_status = parse_status::parsing; size_t _i = 0; 
     // tab parse
     while (_tab_parse_status != parse_status::eof) {
+        _i = std::min(_line.size(), _i);
         // skip blank between words
         while (_i != _line.size() && _line[_i] == ' ') { ++_i; }
         if (_i == _line.size()) break;
@@ -803,7 +849,19 @@ void shell_backend::parse_tab(const std::string& _line) {
                     _word_2bc.push_back(_line[_i]); ++_i;
                 }
             }
-            // else if (_c == '\"') {}
+            else if (_c == '\"') {
+                ++_i; _escaping_required = false;
+                while (true) {
+                    if (_i == _line.size()) {
+                        _tab_parse_status = parse_status::eof; break;
+                    }
+                    if (_line[_i] == '\"') {
+                        _escaping_required = true;
+                        ++_i; break;
+                    }
+                    _word_2bc.push_back(_line[_i]); ++_i;
+                }
+            }
             // else if (_c == '`') {}
             else if (_c == ' ') {
                 _word_2bc.clear(); _word2bc_type = tab_type::file; break;
@@ -975,7 +1033,7 @@ size_t shell_backend::env_variable_length(const std::string& _s, size_t _i) cons
             return _j - _i;
         }
     }
-    return _s.size() - _i;
+    return (_i > _s.size() ? 0 : _s.size() - _i);
 }
 std::pair<bool, const std::string&> shell_backend::env_variable(const std::string& _k) const {
     if (_customed_env_map.contains(_k)) {
@@ -985,6 +1043,19 @@ std::pair<bool, const std::string&> shell_backend::env_variable(const std::strin
         return {true, _preseted_env_map.at(_k)};
     }
     return {false, _empty_string};
+}
+size_t shell_backend::expand_env_variable(std::string& _s, size_t _i) const {
+    assert(_s[_i] == '$');
+    const size_t _l = env_variable_length(_s, _i + 1);
+    if (_l != 0) {
+        const auto& _ev = env_variable(_s.substr(_i + 1, _l));
+        if (_ev.first) {
+            _s.erase(_s.cbegin() + _i, _s.cbegin() + _i + 1 + _l);
+            _s.insert(_i, _ev.second);
+            return _ev.second.size();
+        }
+    }
+    return 0;
 }
 
 

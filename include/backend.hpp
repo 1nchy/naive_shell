@@ -155,6 +155,7 @@ private: // environment variables
     void del_env_variable(const std::string&);
     size_t env_variable_length(const std::string&, size_t) const;
     std::pair<bool, const std::string&> env_variable(const std::string&) const;
+    size_t expand_env_variable(std::string&, size_t) const;
 private: // history
     void load_history();
     std::vector<std::string> _history;
