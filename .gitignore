@@ -17,5 +17,4 @@
 !/doc/*
 !/doc/third/*
 
-!main.cpp
 !makefile
