@@ -1,5 +1,5 @@
-#ifndef _ASP_VIRTUAL_BACKEND_HPP_
-#define _ASP_VIRTUAL_BACKEND_HPP_
+#ifndef _ICY_VIRTUAL_BACKEND_HPP_
+#define _ICY_VIRTUAL_BACKEND_HPP_
 
 #include <string>
 #include <vector>
@@ -11,7 +11,7 @@
 #include "command.hpp"
 #include "job.hpp"
 
-namespace asp {
+namespace icy {
 
 class backend_interface;
 
@@ -44,4 +44,4 @@ protected:
 
 };
 
-#endif // _ASP_VIRTUAL_BACKEND_HPP_
+#endif // _ICY_VIRTUAL_BACKEND_HPP_

@@ -1,10 +1,10 @@
-#include "output.hpp"
+#include "utils/output.hpp"
 
 #include <cstdarg>
 
 #include <cstdio>
 
-namespace asp {
+namespace icy {
 namespace output {
 
 static output_level _output_level = output_level::all;

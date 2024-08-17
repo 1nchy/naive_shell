@@ -1,17 +1,17 @@
-#ifndef _ASP_BACKEND_HPP_
-#define _ASP_BACKEND_HPP_
+#ifndef _ICY_BACKEND_HPP_
+#define _ICY_BACKEND_HPP_
 
 #include "virtual_backend.hpp"
 
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
-#include "trie_tree/trie_tree.hpp"
+#include "trie_tree.hpp"
 
 #include "command.hpp"
 #include "job.hpp"
 
-namespace asp {
+namespace icy {
 
 class shell_backend;
 
@@ -173,4 +173,4 @@ private: // path
 
 };
 
-#endif // _ASP_BACKEND_HPP_
+#endif // _ICY_BACKEND_HPP_

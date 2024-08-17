@@ -1,5 +1,5 @@
-#ifndef _ASP_VIRTUAL_FRONTEND_HPP_
-#define _ASP_VIRTUAL_FRONTEND_HPP_
+#ifndef _ICY_VIRTUAL_FRONTEND_HPP_
+#define _ICY_VIRTUAL_FRONTEND_HPP_
 
 #include <string>
 #include <vector>
@@ -8,7 +8,7 @@
 
 #include "virtual_backend.hpp"
 
-namespace asp {
+namespace icy {
 
 class frontend_interface;
 
@@ -35,4 +35,4 @@ protected:
 
 };
 
-#endif // _ASP_VIRTUAL_FRONTEND_HPP_
+#endif // _ICY_VIRTUAL_FRONTEND_HPP_

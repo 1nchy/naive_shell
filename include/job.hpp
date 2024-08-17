@@ -1,12 +1,12 @@
-#ifndef _ASP_JOB_HPP_
-#define _ASP_JOB_HPP_
+#ifndef _ICY_JOB_HPP_
+#define _ICY_JOB_HPP_
 
 #include <vector>
 #include <string>
 
 #include <termios.h>
 
-namespace asp {
+namespace icy {
 
 struct job;
 
@@ -37,4 +37,4 @@ private:
 
 };
 
-#endif // _ASP_JOB_HPP_
+#endif // _ICY_JOB_HPP_

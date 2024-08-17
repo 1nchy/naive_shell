@@ -4,9 +4,9 @@
 #include <fcntl.h>
 #include <termios.h>
 
-#include "signal_stack/signal_stack.hpp"
+#include "signal_stack.hpp"
 
-namespace asp {
+namespace icy {
 
 static signal_stack _signal_stack;
 

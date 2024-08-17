@@ -1,0 +1,6 @@
+[submodule "third/trie_tree"]
+	path = third/trie_tree
+	url = https://github.com/1nchy/trie_tree.git
+[submodule "third/signal_stack"]
+	path = third/signal_stack
+	url = https://github.com/1nchy/signal_stack.git

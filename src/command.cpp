@@ -1,6 +1,6 @@
 #include "command.hpp"
 
-namespace asp {
+namespace icy {
 void command_sequence::build_word(const std::string& _s) {
     if (_s.empty()) return;
     _further_input = false;

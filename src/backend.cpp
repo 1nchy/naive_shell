@@ -7,14 +7,14 @@
 
 #include <unistd.h>
 
-#include "signal_stack/signal_stack.hpp"
-#include "proc_status/proc_status.hpp"
-#include "file_system/file_system.hpp"
-#include "output/output.hpp"
+#include "signal_stack.hpp"
+#include "utils/proc_status.hpp"
+#include "utils/file_system.hpp"
+#include "utils/output.hpp"
 
 extern char** environ;
 
-namespace asp {
+namespace icy {
 
 static const std::string _empty_string;
 static signal_stack _signal_stack;
@@ -948,7 +948,7 @@ std::vector<std::string> shell_backend::build_env_tab_list(const std::string& _s
 void shell_backend::fetch_program_dict() {
     const std::string _env_path = env_variable("PATH").second;
     size_t _l = 0; size_t _r = 0;
-    asp::filesystem::file_handler _handler = [this](const std::filesystem::path& _i) {
+    icy::filesystem::file_handler _handler = [this](const std::filesystem::path& _i) {
         const auto _file_name = _i.filename().string();
         if (_file_name == "." || _file_name == "..") {}
         else { _program_dict.add(_file_name); }
@@ -956,7 +956,7 @@ void shell_backend::fetch_program_dict() {
     while (_l != _env_path.size()) {
         while (_r != _env_path.size() && _env_path[_r] != ':') { ++_r; }
         const std::filesystem::path _path {_env_path.substr(_l, _r - _l)};
-        asp::filesystem::for_each_file(_path, _handler);
+        icy::filesystem::for_each_file(_path, _handler);
         if (_r != _env_path.size()) ++_r;
         _l = _r;
     }
@@ -966,12 +966,12 @@ void shell_backend::fetch_program_dict() {
 }
 void shell_backend::fetch_file_dict(const std::filesystem::path& _path) {
     _file_dict.clear();
-    asp::filesystem::file_handler _handler = [this](const std::filesystem::path& _i) {
+    icy::filesystem::file_handler _handler = [this](const std::filesystem::path& _i) {
         const auto _file_name = _i.filename().string();
         if (_file_name == "." || _file_name == "..") {}
         else { _file_dict.add(_file_name); }
     };
-    asp::filesystem::for_each_file(_path, _handler);
+    icy::filesystem::for_each_file(_path, _handler);
 }
 void shell_backend::fetch_env_dict() { // just init
     _env_dict.clear();
@@ -984,12 +984,12 @@ void shell_backend::fetch_env_dict() { // just init
 }
 void shell_backend::fetch_cwd_dict() {
     _cwd_dict.clear();
-    asp::filesystem::file_handler _handler = [this](const std::filesystem::path& _i) {
+    icy::filesystem::file_handler _handler = [this](const std::filesystem::path& _i) {
         const auto _file_name = _i.filename().string();
         if (_file_name == "." || _file_name == "..") {}
         else { _cwd_dict.add(_file_name); }
     };
-    asp::filesystem::for_each_file(_cwd, _handler);
+    icy::filesystem::for_each_file(_cwd, _handler);
 }
 bool shell_backend::char_2_escape(char _c) const {
     return _char_2_escape_set.contains(_c);

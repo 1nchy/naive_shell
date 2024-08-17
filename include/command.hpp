@@ -1,12 +1,12 @@
-#ifndef _ASP_COMMAND_HPP_
-#define _ASP_COMMAND_HPP_
+#ifndef _ICY_COMMAND_HPP_
+#define _ICY_COMMAND_HPP_
 
 #include <vector>
 #include <string>
 
 #include <cassert>
 
-namespace asp {
+namespace icy {
 
 struct command;
 struct command_sequence;
@@ -54,4 +54,4 @@ private:
 
 };
 
-#endif // _ASP_COMMAND_HPP_
+#endif // _ICY_COMMAND_HPP_

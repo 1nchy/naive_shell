@@ -9,10 +9,10 @@
 ### 构建与使用
 
 ~~~shell
-$ git clone https://github.com/1nchy/asp_shell.git
-$ cd asp_shell
+$ git clone https://github.com/1nchy/naive_shell.git
+$ cd naive_shell
 $ make
-$ ./shell
+$ ./naive_shell
 ~~~
 
 `make` 编译过程使用了 c++20 及以上标准。
@@ -63,7 +63,7 @@ abandon
 ## 项目结构
 
 ~~~txt
-asp_shell
+naive_shell
 ├── .gitignore
 ├── makefile
 ├── LICENSE.md

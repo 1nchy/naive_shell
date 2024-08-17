@@ -1,8 +1,8 @@
-#include "proc_status.hpp"
+#include "utils/proc_status.hpp"
 
 #include <fstream>
 
-namespace asp {
+namespace icy {
 namespace proc {
 std::vector<std::string> get_status(pid_t _pid, const std::vector<std::string>& _vs) {
     std::string _proc_path = "/proc/" + std::to_string(_pid) + "/status";

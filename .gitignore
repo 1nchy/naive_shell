@@ -6,15 +6,15 @@
 
 !/src
 !/src/*
+!/src/*/*
 !/include
 !/include/*
+!/include/*/*
 !/third
-!/third/*
-/third/lib/
-/third/obj/
-!/third/*/*
+!/third/trie_tree
+!/third/signal_stack
 !/doc
 !/doc/*
-!/doc/third/*
 
-!makefile
+!CMakeLists.txt
+!main.cpp

@@ -1,7 +1,7 @@
-#ifndef _ASP_OUTPUT_HPP_
-#define _ASP_OUTPUT_HPP_
+#ifndef _ICY_OUTPUT_HPP_
+#define _ICY_OUTPUT_HPP_
 
-namespace asp {
+namespace icy {
 namespace output {
 
 enum output_level {
@@ -26,4 +26,4 @@ void output_func(output_level _l, const char* _file, int _line, const char* _fmt
 }
 }
 
-#endif // _ASP_OUTPUT_HPP_
+#endif // _ICY_OUTPUT_HPP_

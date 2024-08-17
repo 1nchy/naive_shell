@@ -1,12 +1,12 @@
-#ifndef _ASP_FRONTEND_HPP_
-#define _ASP_FRONTEND_HPP_
+#ifndef _ICY_FRONTEND_HPP_
+#define _ICY_FRONTEND_HPP_
 
 #include "virtual_frontend.hpp"
 
 #include <unordered_map>
 #include <unordered_set>
 
-namespace asp {
+namespace icy {
 
 class shell_frontend;
 
@@ -129,4 +129,4 @@ private:
 
 };
 
-#endif // _ASP_FRONTEND_HPP_
+#endif // _ICY_FRONTEND_HPP_
