@@ -7,6 +7,8 @@
 
 #include <unistd.h>
 
+#include <tuple>
+
 #include "signal_stack.hpp"
 #include "utils/proc_status.hpp"
 #include "utils/file_system.hpp"
@@ -367,12 +369,12 @@ int shell_backend::execute_command(const command& _cmd) {
         int _temp_fd = -1;
         const size_t _n = _cmd.size();
         if (_n >= 2) {
-            pipe(_child_in_fd); // pipe between main child process and 1st process
+            std::ignore = pipe(_child_in_fd); // pipe between main child process and 1st process
         }
         for (size_t _i = 2; _i <= _n; ++_i) {
             std::swap(_child_in_fd, _child_out_fd);
             if (_i != _n) {
-                pipe(_child_in_fd);
+                std::ignore = pipe(_child_in_fd);
             }
             _pid = fork();
             if (_pid == 0) { // other process
@@ -626,20 +628,20 @@ void shell_backend::_M_pwd(const std::vector<std::string>& _args) {
 }
 void shell_backend::_M_cd(const std::vector<std::string>& _args) {
     if (_args.size() == 1) { // cd
-        chdir(_home_dir.c_str());
+        std::ignore = chdir(_home_dir.c_str());
     }
     else if (_args.at(1) == "-") { // cd -
-        chdir(_prev_cwd.c_str());
+        std::ignore = chdir(_prev_cwd.c_str());
         printf("%s\n", _prev_cwd.c_str());
     }
     else if (_args.at(1) == ".") { // cd .
         return;
     }
     else if (_args.at(1) == "..") { // cd ..
-        chdir(_cwd.parent_path().c_str());
+        std::ignore = chdir(_cwd.parent_path().c_str());
     }
     else {
-        chdir(_args.at(1).c_str());
+        std::ignore = chdir(_args.at(1).c_str());
     }
     _prev_cwd = _cwd;
     _cwd = std::filesystem::current_path();
