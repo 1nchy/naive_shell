@@ -102,3 +102,7 @@ shell 在实现中被划分为前后端两部分，关于[前端](doc/frontend.m
 > 最后，项目中只需要以 `#include "signal_stack/signal_stack.hpp"` 的方式引用头文件即可。
 
 独立功能中的[信号栈](doc/third/signal_stack.md)与[字典树](doc/third/trie_tree.md)的设计与实现稍复杂，细节详见文档。
+
+## 缺陷
+
+- [ ] 内建命令无法重定向输入输出
