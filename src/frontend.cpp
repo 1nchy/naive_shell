@@ -390,12 +390,12 @@ void shell_frontend::build_line() {
 
 void shell_frontend::_M_cooked() {
     _signal_stack.build(SIGCHLD, nullptr);
-    system("stty cooked");
+    std::ignore = system("stty cooked");
     _signal_stack.restore(SIGCHLD);
 }
 void shell_frontend::_M_raw() {
     _signal_stack.build(SIGCHLD, nullptr);
-    system("stty raw");
+    std::ignore = system("stty raw");
     _signal_stack.restore(SIGCHLD);
 }
 void shell_frontend::_M_term_start_handler() {
