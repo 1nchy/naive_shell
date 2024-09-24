@@ -328,28 +328,27 @@ int shell_backend::execute_command(const command& _cmd) {
             _input_file = fopen(_cmd._redirect_in.c_str(), "r+");
             if (_input_file != nullptr) {
                 dup2(fileno(_input_file), _in);
+                fclose(_input_file);
             }
         }
         if (!_cmd._redirect_out.empty()) {
             if (_cmd._redirect_out_type == 1) {
                 _output_file = fopen(_cmd._redirect_out.c_str(), "w+");
                 dup2(fileno(_output_file), _out);
+                fclose(_output_file);
             }
             else if (_cmd._redirect_out_type == 2) {
                 _output_file = fopen(_cmd._redirect_out.c_str(), "a+");
                 dup2(fileno(_output_file), _out);
+                fclose(_output_file);
             }
         }
         const auto _r = execute_builtin_instruction(_main_ins);
         // re-redirect
-        if (_input_file != nullptr) {
-            fclose(_input_file);
-            dup2(_old_in, _in);
-        }
-        if (_output_file != nullptr) {
-            fclose(_output_file);
-            dup2(_old_out, _in);
-        }
+        dup2(_old_in, _in);
+        dup2(_old_out, _out);
+        close(_old_in);
+        close(_old_out);
         return _r;
     }
 
@@ -710,12 +709,14 @@ void shell_backend::_M_sleep(const std::vector<std::string>& _args) {
     std::this_thread::sleep_for(std::chrono::seconds(_x));
 }
 void shell_backend::_M_echo(const std::vector<std::string>& _args) {
+    FILE* _out_file = fdopen(_out, "a+");
     for (size_t _i = 1; _i < _args.size();) {
-        printf("%s", _args[_i].c_str());
+        fprintf(_out_file, "%s", _args[_i].c_str());
         ++_i;
-        if (_i != _args.size()) printf(" ");
+        if (_i != _args.size()) fprintf(_out_file, " ");
     }
-    printf("\n");
+    fprintf(_out_file, "\n");
+    fclose(_out_file);
 }
 void shell_backend::_M_setenv(const std::vector<std::string>& _args) {
     if (_args.size() == 2) {
