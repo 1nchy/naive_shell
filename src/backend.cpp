@@ -14,6 +14,8 @@
 #include "utils/file_system.hpp"
 #include "utils/output.hpp"
 
+#include "res/const_message.hpp"
+
 extern char** environ;
 
 namespace icy {
@@ -463,7 +465,8 @@ int shell_backend::execute_command(const command& _cmd) {
         waitpid_handler(_pid, _status);
     }
     else {
-        printf("[%ld](%d) \t%s\n", _task_serial_i, _pid, _main_ins.front().c_str());
+        // printf("[%ld](%d) \t%s\n", _task_serial_i, _pid, _main_ins.front().c_str());
+        std::ignore = output::iprintf(_out, message::job, _task_serial_i, _pid, _main_ins.front());
         _j.set_serial(_task_serial_i);
         _proc_map.insert({_pid, _j});
         append_background_job(_pid);
@@ -486,9 +489,18 @@ int shell_backend::execute_instruction(const std::vector<std::string>& _args) {
 }
 int shell_backend::execute_builtin_instruction(const std::vector<std::string>& _args) {
     const int _builtin_check_result = builtin_instruction_check(_args[0], _args);
-    if (_builtin_check_result == 1) { printf("too many arguments\n"); return -1; }
-    else if (_builtin_check_result == -1) { printf("not enough arguments\n"); return -1; }
-    else if (_builtin_check_result != 0) { printf("arguments error\n"); return -1; }
+    if (_builtin_check_result == 1) {
+        std::ignore = output::iprintf(_out, message::too_many_args);
+        return -1;
+    }
+    else if (_builtin_check_result == -1) {
+        std::ignore = output::iprintf(_out, message::not_enough_args);
+        return -1;
+    }
+    else if (_builtin_check_result != 0) {
+        std::ignore = output::iprintf(_out, message::wrong_args);
+        return -1;
+    }
     (this->*_builtin_instruction_map.at(_args[0])._handler)(_args);
     return 0;
 }
@@ -549,7 +561,8 @@ void shell_backend::waitpid_handler(pid_t _pid, int _status) {
             const std::vector<std::string> _state = {"Name"};
             const auto _vs = proc::get_status(_pid, _state);
             if (!_vs.empty()) {
-                printf("(%d) \t%s stopped\n", _pid, _vs[0].c_str());
+                // printf("(%d) \t%s stopped\n", _pid, _vs[0].c_str());
+                output::iprintf(_out, message::stopped, _pid, _vs[0]);
             }
         }
         tcsetpgrp(_in, getpid());
@@ -562,7 +575,8 @@ void shell_backend::waitpid_handler(pid_t _pid, int _status) {
             const std::vector<std::string> _state = {"Name"};
             const auto _vs = proc::get_status(_pid, _state);
             if (!_vs.empty()) {
-                printf("[%ld](%d) \t%s done\n", _j.serial(), _pid, _vs[0].c_str());
+                // printf("[%ld](%d) \t%s done\n", _j.serial(), _pid, _vs[0].c_str());
+                output::iprintf(_out, message::done, _j.serial(), _pid, _vs[0]);
             }
             remove_background_job(_j.serial());
             _proc_map.erase(_pid);
@@ -623,7 +637,7 @@ bool shell_backend::is_builtin_instruction(const std::string& _cmd) const {
     return _builtin_instruction_map.contains(_cmd);
 }
 void shell_backend::_M_pwd(const std::vector<std::string>& _args) {
-    printf("%s\n", _cwd.c_str());
+    std::ignore = output::iprintf(_out, "%\n", _cwd.string());
 }
 void shell_backend::_M_cd(const std::vector<std::string>& _args) {
     if (_args.size() == 1) { // cd
@@ -631,7 +645,7 @@ void shell_backend::_M_cd(const std::vector<std::string>& _args) {
     }
     else if (_args.at(1) == "-") { // cd -
         std::ignore = chdir(_prev_cwd.c_str());
-        printf("%s\n", _prev_cwd.c_str());
+        std::ignore = output::iprintf(_out, "%\n", _prev_cwd.string());
     }
     else if (_args.at(1) == ".") { // cd .
         return;
@@ -647,7 +661,7 @@ void shell_backend::_M_cd(const std::vector<std::string>& _args) {
 }
 void shell_backend::_M_history(const std::vector<std::string>& _args) {
     for (const auto& _s : _history) {
-        printf("%s\n", _s.c_str());
+        std::ignore = output::iprintf(_out, "%\n", _s);
     }
 }
 void shell_backend::_M_quit(const std::vector<std::string>& _args) {
@@ -657,7 +671,7 @@ void shell_backend::_M_quit(const std::vector<std::string>& _args) {
 void shell_backend::_M_bg(const std::vector<std::string>& _args) {
     const size_t _s = std::stoi(_args[1]);
     if (!_bg_map.contains(_s)) {
-        printf("wrong task id\n");
+        std::ignore = output::iprintf(_out, message::wrong_task_id);
         return;
     }
     const pid_t _pid = _bg_map[_s];
@@ -667,7 +681,7 @@ void shell_backend::_M_bg(const std::vector<std::string>& _args) {
 void shell_backend::_M_fg(const std::vector<std::string>& _args) {
     const size_t _s = std::stoi(_args[1]);
     if (!_bg_map.contains(_s)) {
-        printf("wrong task id\n");
+        std::ignore = output::iprintf(_out, message::wrong_task_id);
         return;
     }
     const pid_t _pid = _bg_map[_s];
@@ -689,14 +703,15 @@ void shell_backend::_M_jobs(const std::vector<std::string>& _args) {
     for (const auto& [_s, _p] : _bg_map) {
         const auto _vs = proc::get_status(_p, _states);
         if (!_vs.empty()) {
-            printf("[%ld](%d) \t%s \t%s\n", _s, _p, _vs[0].c_str(), _vs[1].c_str());
+            // printf("[%ld](%d) \t%s \t%s\n", _s, _p, _vs[0].c_str(), _vs[1].c_str());
+            output::iprintf(_out, message::job2, _s, _p, _vs[0], _vs[1]);
         }
     }
 }
 void shell_backend::_M_kill(const std::vector<std::string>& _args) {
     const size_t _i = std::stoi(_args[1]);
     if (!_bg_map.contains(_i)) {
-        printf("wrong task id\n");
+        std::ignore = output::iprintf(_out, message::wrong_task_id);
         return;
     }
     pid_t _pid = _bg_map[_i];
@@ -709,14 +724,12 @@ void shell_backend::_M_sleep(const std::vector<std::string>& _args) {
     std::this_thread::sleep_for(std::chrono::seconds(_x));
 }
 void shell_backend::_M_echo(const std::vector<std::string>& _args) {
-    FILE* _out_file = fdopen(_out, "a+");
     for (size_t _i = 1; _i < _args.size();) {
-        fprintf(_out_file, "%s", _args[_i].c_str());
+        std::ignore = output::iprintf(_out, "%", _args[_i]);
         ++_i;
-        if (_i != _args.size()) fprintf(_out_file, " ");
+        if (_i != _args.size()) std::ignore = output::iprintf(_out, " ");
     }
-    fprintf(_out_file, "\n");
-    fclose(_out_file);
+    std::ignore = output::iprintf(_out, "\n");
 }
 void shell_backend::_M_setenv(const std::vector<std::string>& _args) {
     if (_args.size() == 2) {

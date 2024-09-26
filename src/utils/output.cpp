@@ -21,5 +21,6 @@ void output_func(output_level _l, const char* _file, int _line, const char* _fmt
     vprintf(_fmt, _args);
     va_end(_args);
 }
+
 }
 };
