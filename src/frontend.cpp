@@ -89,7 +89,7 @@ void shell_frontend::clear() {
 short shell_frontend::_M_read_character() {
     _M_term_start_handler();
     char _c;
-    short _result;
+    short _result = EXT_CHAR(ec_eof);
     while (true) {
         const auto _r = _M_read(_c);
         if (_r == -1) {
